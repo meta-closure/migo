@@ -2,9 +2,8 @@ package main
 
 import (
 	"io/ioutil"
+	"mig"
 	"os"
-
-	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
@@ -14,32 +13,32 @@ import (
 )
 
 type Option struct {
-	JSON         string `short:"j" long:"json" description:"Source Schema JSON File"`
-	YANL         string `short:"y" long:"yaml" description:"Source Schema YANL File"`
-	InternalFile string `short:"i" long:"internal" description:"Internal generated data JSON file" required:"true"`
+	JSON      string `short:"j" long:"json" description:"Source Schema JSON File"`
+	YANL      string `short:"y" long:"yaml" description:"Source Schema YANL File"`
+	StateFile string `short:"i" long:"state file" description:"Internal generated data JSON file"`
 }
 
 func cmd() (*Option, error) {
 	opts := &Option{}
 	_, err := flags.Parse(opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "Internal JSON file not specified:")
+		return nil, err
 	}
 	return opts, nil
 }
 
-func SchemaParse(h *hschema.HyperSchema, opt *Option) error {
+func ParseSchema(h *hschema.HyperSchema, opt *Option) error {
 	if opt.JSON != "" {
 		hs, err := hschema.ReadFile(opt.JSON)
 		if err != nil {
-			return errors.Wrap(err, "JSON file parse error:")
+			return errors.Wrap(err, "JSON file parse error")
 		}
 		h = hs
 		return nil
 	} else if opt.YANL != "" {
 		b, err := ioutil.ReadFile(opt.YANL)
 		if err != nil {
-			return errors.Wrap(err, "YAML file open error:")
+			return errors.Wrap(err, "YAML file open error")
 		}
 		var y map[string]interface{}
 		err = yaml.Unmarshal(b, y)
@@ -53,60 +52,46 @@ func SchemaParse(h *hschema.HyperSchema, opt *Option) error {
 	}
 }
 
-func InternalParse(s string) (map[string]interface{}, error) {
-	var i map[string]interface{}
-	b, err := ioutil.ReadFile(s)
-	if err != nil {
-		return i, errors.Wrap(err, "Internal JSON file read error:")
-	}
-
-	err = json.Unmarshal(b, i)
-	if err != nil {
-		return i, errors.Wrap(err, "Internal JSON file parse error:")
-	}
-	return i, nil
-}
-
 func _main() int {
 	opt, err := cmd()
 	if err != nil {
-		log.Printf("Command parse error: %v", err)
-		return -1
+		log.Printf("Command parse error %v", err)
+		return 1
 	}
 
 	h := hschema.New()
-	err = SchemaParse(h, opt)
+	err = ParseSchema(h, opt)
 	if err != nil {
-		log.Printf("HyperSchema parse error: %v", err)
-		return -1
+		log.Printf("HyperSchema parse error %v", err)
+		return 1
 	}
 
-	old, err := InternalParse(opt.InternalFile)
+	s, err := mig.StateNew(opt.StateFile)
 	if err != nil {
-		log.Printf("Internal JSON file parse error: %v", err)
-		return -1
+		log.Printf("State JSON file parse error %v", err)
+		return 1
 	}
 
-	new, err := mig.InternalBuilder(h)
+	sql, err := s.SQLBuilder(h)
 	if err != nil {
-		log.Printf("HyperSchema convert Internal representation error: %v", err)
-		return -1
+		log.Printf("SQL Build error %v", err)
+		return 1
 	}
 
-	sql, err := mig.SQLBuilder(new, old)
+	sql.Check()
+	err = sql.Migrate()
 	if err != nil {
-		log.Printf("SQL Build error: %v", err)
-		return -1
+		log.Printf("Database migration error %v", err)
+		return 1
 	}
 
-	mig.Check(sql)
-	err := mig.Migrate(sql)
+	err = s.Update(h)
 	if err != nil {
-		log.Printf("Database migration error: %v", err)
-		return -1
+		log.Printf("Failed to save State file")
+		return 1
 	}
 
-	return 1
+	return 0
 }
 
 func main() {
