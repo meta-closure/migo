@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/lestrrat/go-jshschema"
+	"github.com/lestrrat/go-jsschema"
 )
 
 const (
@@ -43,7 +44,7 @@ type Column struct {
 	NotNull           bool
 }
 
-type Command struct {
+type ColumnMeta struct {
 	FK        ForeignKey
 	Index     Index
 	PK        []Column
@@ -54,21 +55,59 @@ type Command struct {
 
 type Sql struct {
 	Db         string
-	Url        string
 	User       string
 	Password   string
-	Operations []Command
+	Operations []ColumnMeta
 }
 
 func (s Sql) Check() {
 
 }
 
-func (s *State) SQLBuilder(h *hschema.HyperSchema) (Sql, error) {
-	return Sql{}, nil
+func (s *Sql) GetConnect(d *hschema.HyperSchema) error {
+	return nil
 }
 
-func (c Command) QueryBuilder() (string, error) {
+func (s *Sql) GetColumn(d *schema.Schema) error {
+	return nil
+}
+
+func (s *Sql) GetTable(d *schema.Schema) error {
+	if d.Extras["Table"] == nil {
+		return nil
+	}
+
+	return nil
+}
+
+func (s *State) SQLBuilder(h *hschema.HyperSchema) (*Sql, error) {
+	sql := &Sql{}
+	err := sql.GetConnect(h)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, j := range h.Definitions {
+		err = sql.GetTable(j)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, l := range h.Links {
+		err = sql.GetTable(l.Schema)
+		if err != nil {
+			return nil, err
+		}
+		err = sql.GetTable(l.TargetSchema)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return sql, nil
+}
+
+func (c ColumnMeta) QueryBuilder() (string, error) {
 	q := fmt.Sprintf("ALTER TABLE %s", c.Table)
 
 	switch c.AlterType {
@@ -143,11 +182,11 @@ func (c Command) QueryBuilder() (string, error) {
 	}
 }
 
-func (s Sql) ConnectionBuilder() string {
+func (s *Sql) ConnectionBuilder() string {
 	return ""
 }
 
-func (s Sql) Migrate() error {
+func (s *Sql) Migrate() error {
 	db, err := sql.Open("mysql", "root:@/mig")
 	if err != nil {
 		return err
