@@ -60,19 +60,25 @@ func _main() int {
 	}
 
 	h := hschema.New()
-	err = ParseSchema(h, opt)
+	err := ParseSchema(h, opt)
 	if err != nil {
 		log.Printf("HyperSchema parse error %v", err)
 		return 1
 	}
 
-	s, err := mig.StateNew(opt.StateFile)
+	n, err := mig.ParseSchema2State(h)
+	if err != nil {
+		log.Printf("Parse HyperSchema to State failed %v", err)
+		return 1
+	}
+
+	o, err := mig.ParseState(opt.StateFile)
 	if err != nil {
 		log.Printf("State JSON file parse error %v", err)
 		return 1
 	}
 
-	sql, err := s.SQLBuilder(h)
+	sql, err := s.SQLBuilder(n)
 	if err != nil {
 		log.Printf("SQL Build error %v", err)
 		return 1
@@ -85,9 +91,9 @@ func _main() int {
 		return 1
 	}
 
-	err = s.Update(h)
+	err = n.Update()
 	if err != nil {
-		log.Printf("Failed to save State file")
+		log.Printf("Failed to save State file %v", err)
 		return 1
 	}
 
