@@ -1,0 +1,58 @@
+table:
+    posts:
+        name: posts
+        primary_key: 
+            key_id: ok
+            key: 
+                - id
+        column:
+            id:
+                name: id
+                type: int(11)
+
+            user_id:
+                name: user_id
+                type: varchar(255)
+                foreig_key:
+                    target:   
+                        target_table: users
+                        target_column: id
+       
+            title:
+                type: varchar(255)
+        
+            body:
+                type: varchar(10000)
+        
+            created_at:
+                name: created_at
+                type: time
+
+            updated_at:
+                name: updated_at
+                type: time
+
+    users:     
+        name: users
+        
+        primary_key:
+            - id
+
+        column:
+            id:
+                name: id 
+                type: int
+            
+            screen_name:
+                name: screen_name
+                type: string
+        
+            created_at:
+                name: created_at
+                type: time
+
+            crypted_password:
+                name: crypted_password
+                type: text
+        
+        

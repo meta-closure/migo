@@ -60,7 +60,7 @@ func _main() int {
 	}
 
 	h := hschema.New()
-	err := ParseSchema(h, opt)
+	err = ParseSchema(h, opt)
 	if err != nil {
 		log.Printf("HyperSchema parse error %v", err)
 		return 1
@@ -78,7 +78,7 @@ func _main() int {
 		return 1
 	}
 
-	sql, err := s.SQLBuilder(n)
+	sql, err := o.SQLBuilder(n)
 	if err != nil {
 		log.Printf("SQL Build error %v", err)
 		return 1

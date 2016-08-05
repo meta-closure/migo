@@ -1,0 +1,266 @@
+
+title: sample API schema
+description: sample API schema
+db:
+    user: root
+    passwd: 
+    addr: 127.0.0.1:3306
+    dbname:test
+
+definitions:
+    ok:
+        type: boolean
+        db_type: bool
+        description: succeesed check
+        example: true
+    
+    user_id:
+        type: string
+        db_type: int(11)
+        description: user id
+        example: okpk
+        readOnly: true
+        unique: true
+
+    screen_name:
+        type: string
+        db_type: varchar(255)
+        description: user secreen name
+        example: hei
+
+    password:
+        type: string
+        db_type: varchar(255)
+        description: user password
+        example: meta-closure
+
+    title:
+        type: string
+        description: post title
+        example: TITLE
+    body:
+        type: string
+        description: post body
+        example: this is body
+    post_id:
+        type: integer
+        description: post id
+        example: 1011
+        unique: true
+    page:
+        type: integer
+        description: page
+        example: 1
+
+    user:
+        type: object
+        title: User
+        description: User
+        table: 
+            name: users
+            primary_key: 
+                - user_id
+        properties:
+            user_id:
+                column: 
+                    name: user_id
+                    type: int
+                    auto_increment: true
+                $ref: '#/definitions/user_id'
+            screen_name:
+                column:
+                    name: screen_name
+                $ref: '#/definitions/screen_name'
+    post:
+        type: object
+        title: post
+        description: post
+        table:
+            parimary_key: post_id
+        properties:
+            post_id:
+                $ref: '#/definitions/post_id'
+            title:
+                $ref: '#/definitions/title'
+            body:
+                $ref: '#/definitions/body'
+    
+    posts:
+        type: array
+        title: posts
+        description: posts
+        items:
+            $ref: '#/definitions/post'
+                    
+
+href: https://sample-app
+pathStart: /v1
+    
+links:
+    - title: CREATE user
+      description: create user
+      rel: create
+      href: /users
+      method: POST
+      schema:
+          type: object
+          properties:
+              user_id:
+                  $ref: '#/definitions/user_id'
+              screen_name:
+                  $ref: '#/definitions/screen_name'
+              password:
+                  $ref: '#/definitions/password'
+          required:
+              - user_id
+              - screen_name
+              
+      targetSchema:
+          $ref: '#/definitions/user'
+    - title: PUT user
+      description: update user
+      rel: update
+      href: /users/:user_id
+      method: PUT
+      schema:
+          type: object
+          properties:
+              screen_name:
+                  $ref: '#/definitions/screen_name'
+              password:
+                  $ref: '#/definitions/password'
+          required:
+              - screen_name
+              - password
+      targetSchema:
+          $ref: '#/definitions/user'
+    - title: DELETE user
+      description: delete user
+      rel: delete
+      href: /user/:user_id
+      method: DELETE
+      schema:
+          type: object
+          properties:
+              password:
+                  $ref: '#/definitions/password'
+          required:
+              - password
+      targetSchema:
+          $ref: '#/definitions/ok'
+
+    - title: GET user
+      description: get user data
+      rel: self
+      href: /user/:user_id
+      method: GET
+      targetSchema:
+          $ref: '#/definitions/user'
+
+    - title: create session
+      description: create session
+      rel: create
+      href: /session
+      method: POST
+      schema:
+          type: object
+          properties:
+              user_id:
+                  $ref: '#/definitions/user_id'
+              password:
+                  $ref: '#/definitions/password'
+          required:
+              - user_id
+              - password
+      targetSchema:
+          $ref: '#/definitions/ok'
+
+    - title: DELETE session
+      description: delete session
+      rel: delete
+      href: /session
+      method: DELETE
+      schema:
+          type: object
+          properties:
+              user_id:
+                  $ref: '#/definitions/user_id'
+              password:
+                  $ref: '#/definitions/password'
+          required:
+              - user_id
+              - password
+      targetSchema:
+          $ref: '#/definitions/ok'
+
+                      
+    - title: POST post
+      description: create post
+      rel: create
+      href: /posts
+      method: POST
+      schema:
+          type: object
+          properties:
+              title:
+                  $ref: '#/definitions/title'
+              body:
+                  $ref: '#/definitions/body'
+          required:
+              - title
+              - body
+      targetSchema:
+          $ref: '#/definitions/post'
+
+    - title: DELETE post by post_id
+      description: delete post
+      rel: delete
+      href: /posts/:post_id
+      method: DELETE
+      targetSchema:
+          $ref: '#/definitions/ok'
+
+
+    - title: PUT post by post_id
+      description: update post
+      rel: put
+      href: /posts/:post_id
+      method: PUT
+      schema:
+          type: object
+          properties:
+              title:
+                  $ref: '#/definitions/title'
+              body:
+                  $ref: '#/definitions/body'
+          required:
+              - title
+              - body
+      targetSchema:
+          $ref: '#/definitions/post'
+
+    - title: GET posts
+      description: get post index
+      rel: self
+      href: /posts
+      method: GET
+      targetSchema:
+          type: object
+          properties:
+              page:
+                  $ref: '#/definitions/page'
+              posts:
+                  $ref: '#/definitions/posts'
+
+    - title: GET post by post_id
+      description: get post_id post
+      rel: self
+      href: /posts/:post_id
+      method: GET
+      targetSchema:
+          type: object
+          properties:
+              post:
+                  $ref: '#/definitions/post'
+
+

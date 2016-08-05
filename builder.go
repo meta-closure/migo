@@ -9,18 +9,23 @@ import (
 	"github.com/pkg/errors"
 )
 
-var ()
-
 type State struct {
 	Db    Db      `json:"db"`
 	Table []Table `json:"table"`
 }
 
+type Db struct {
+	User   string
+	Passwd string
+	Addr   string
+	DBName string
+}
+
 type Table struct {
 	BeforeName string   `json:"before_name"`
 	Name       string   `json:"name"`
-	PrimaryKey []string `json:"primary_key"`
-	Index      []string `json:"index"`
+	PrimaryKey Key      `json:"primary_key"`
+	Index      Key      `json:"index"`
 	Columns    []Column `json:"column"`
 }
 
@@ -40,6 +45,47 @@ func ParseState(s string) (*State, error) {
 	}
 
 	return st, nil
+}
+
+func (db *Db) ParseSchema2Db(d *hschema.HyperSchema) error {
+	if d.Extras["db"] == nil {
+		return ErrEmpty
+	}
+	conn := d.Extras["db"].(map[string]interface{})
+	for k, v := range conn {
+		switch k {
+		case "user":
+			st, ok := v.(string)
+			if ok != true {
+				return errors.Wrap(ErrTypeInvalid, k)
+			}
+			db.User = st
+
+		case "passwd":
+			st, ok := v.(string)
+			if ok != true {
+				return errors.Wrap(ErrTypeInvalid, k)
+			}
+			db.Passwd = st
+
+		case "addr":
+			st, ok := v.(string)
+			if ok != true {
+				return errors.Wrap(ErrTypeInvalid, k)
+			}
+			db.Addr = st
+
+		case "dbname":
+			st, ok := v.(string)
+			if ok != true {
+				return errors.Wrap(ErrTypeInvalid, k)
+			}
+			db.DBName = st
+		default:
+			continue
+		}
+	}
+	return nil
 }
 
 func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) error {
@@ -100,13 +146,13 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			t.PrimaryKey = a
+			t.PrimaryKey.Target = a
 		case "index":
 			a, ok := v.([]string)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			t.Index = a
+			t.Index.Target = a
 		case "before_name":
 			st, ok := v.(string)
 			if ok != true {
@@ -141,7 +187,7 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 
 func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 	s := StateNew()
-	err := s.Db.GetDbConnect(h)
+	err := s.Db.ParseSchema2Db(h)
 	if err != nil {
 		return nil, err
 	}
@@ -188,35 +234,6 @@ func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 		}
 	}
 	return s, err
-}
-
-func (s *State) ExistNewTable(m *schema.Schema) (bool, error) {
-
-	db, ok := m.Extras["db"].(map[string]interface{})
-	if ok != true {
-		return false, errors.Wrap(ErrTypeInvalid, "Db")
-	}
-
-	for _, t := range s.Table {
-		if db["table"] == nil {
-			return false, errors.Wrapf(ErrEmpty, "Table not specified")
-		}
-
-		s, ok := db["table"].(string)
-		if ok != true {
-			return false, errors.Wrapf(ErrTypeInvalid, "Table not string")
-		}
-
-		if t.Name == s {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (s *State) ExistColumnUpdate(m *schema.Schema) (bool, error) {
-	return false, nil
 }
 
 func (s *State) Update() error {
