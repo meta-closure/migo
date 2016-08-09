@@ -59,9 +59,7 @@ definitions:
         table: 
             name: users
             primary_key:
-                name: user_id
-                key:
-                    - user_id
+                - user_id
         properties:
             user_id:
                 column: 
@@ -82,9 +80,7 @@ definitions:
         table:
             name: posts
             primary_key: 
-                name: post_id
-                key:
-                    - post_id
+                - post_id
         properties:
             post_id:
                 column:
