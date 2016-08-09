@@ -4,7 +4,7 @@ import:
   version: ~0.10.0
 - package: github.com/ghodss/yaml
 - package: github.com/go-sql-driver/mysql
-  version: ~1.2.0
+  version: 0b58b37b664c21f3010e836f1b931e1d0b0b0685
 - package: github.com/jessevdk/go-flags
   version: ~1.0.0
 - package: github.com/lestrrat/go-jshschema
