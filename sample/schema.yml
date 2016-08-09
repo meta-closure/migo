@@ -5,7 +5,7 @@ db:
     user: root
     passwd: 
     addr: 127.0.0.1:3306
-    dbname:test
+    dbname: mig
 
 definitions:
     ok:
@@ -58,31 +58,57 @@ definitions:
         description: User
         table: 
             name: users
-            primary_key: 
-                - user_id
+            primary_key:
+                name: user_id
+                key:
+                    - user_id
         properties:
             user_id:
                 column: 
                     name: user_id
                     type: int
-                    auto_increment: true
+                    not_null: true
+
                 $ref: '#/definitions/user_id'
             screen_name:
                 column:
                     name: screen_name
+                    type: varchar(255)
                 $ref: '#/definitions/screen_name'
     post:
         type: object
-        title: post
+        title: posts
         description: post
         table:
-            parimary_key: post_id
+            name: posts
+            primary_key: 
+                name: post_id
+                key:
+                    - post_id
         properties:
+            test:
+                column:
+                    name: test
+                    type: int
+                    not_null: true
+                $ref: "#/definitions/body"
+
             post_id:
+                column:
+                    not_null: true
+                    name: post_id
+                    type: varchar(255)
                 $ref: '#/definitions/post_id'
+            
             title:
+                column:
+                    name: title
+                    type: varchar(255)
                 $ref: '#/definitions/title'
             body:
+                column:
+                    name: body
+                    type: varchar(255)
                 $ref: '#/definitions/body'
     
     posts:
@@ -117,150 +143,3 @@ links:
               
       targetSchema:
           $ref: '#/definitions/user'
-    - title: PUT user
-      description: update user
-      rel: update
-      href: /users/:user_id
-      method: PUT
-      schema:
-          type: object
-          properties:
-              screen_name:
-                  $ref: '#/definitions/screen_name'
-              password:
-                  $ref: '#/definitions/password'
-          required:
-              - screen_name
-              - password
-      targetSchema:
-          $ref: '#/definitions/user'
-    - title: DELETE user
-      description: delete user
-      rel: delete
-      href: /user/:user_id
-      method: DELETE
-      schema:
-          type: object
-          properties:
-              password:
-                  $ref: '#/definitions/password'
-          required:
-              - password
-      targetSchema:
-          $ref: '#/definitions/ok'
-
-    - title: GET user
-      description: get user data
-      rel: self
-      href: /user/:user_id
-      method: GET
-      targetSchema:
-          $ref: '#/definitions/user'
-
-    - title: create session
-      description: create session
-      rel: create
-      href: /session
-      method: POST
-      schema:
-          type: object
-          properties:
-              user_id:
-                  $ref: '#/definitions/user_id'
-              password:
-                  $ref: '#/definitions/password'
-          required:
-              - user_id
-              - password
-      targetSchema:
-          $ref: '#/definitions/ok'
-
-    - title: DELETE session
-      description: delete session
-      rel: delete
-      href: /session
-      method: DELETE
-      schema:
-          type: object
-          properties:
-              user_id:
-                  $ref: '#/definitions/user_id'
-              password:
-                  $ref: '#/definitions/password'
-          required:
-              - user_id
-              - password
-      targetSchema:
-          $ref: '#/definitions/ok'
-
-                      
-    - title: POST post
-      description: create post
-      rel: create
-      href: /posts
-      method: POST
-      schema:
-          type: object
-          properties:
-              title:
-                  $ref: '#/definitions/title'
-              body:
-                  $ref: '#/definitions/body'
-          required:
-              - title
-              - body
-      targetSchema:
-          $ref: '#/definitions/post'
-
-    - title: DELETE post by post_id
-      description: delete post
-      rel: delete
-      href: /posts/:post_id
-      method: DELETE
-      targetSchema:
-          $ref: '#/definitions/ok'
-
-
-    - title: PUT post by post_id
-      description: update post
-      rel: put
-      href: /posts/:post_id
-      method: PUT
-      schema:
-          type: object
-          properties:
-              title:
-                  $ref: '#/definitions/title'
-              body:
-                  $ref: '#/definitions/body'
-          required:
-              - title
-              - body
-      targetSchema:
-          $ref: '#/definitions/post'
-
-    - title: GET posts
-      description: get post index
-      rel: self
-      href: /posts
-      method: GET
-      targetSchema:
-          type: object
-          properties:
-              page:
-                  $ref: '#/definitions/page'
-              posts:
-                  $ref: '#/definitions/posts'
-
-    - title: GET post by post_id
-      description: get post_id post
-      rel: self
-      href: /posts/:post_id
-      method: GET
-      targetSchema:
-          type: object
-          properties:
-              post:
-                  $ref: '#/definitions/post'
-
-

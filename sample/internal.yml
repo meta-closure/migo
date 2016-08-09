@@ -1,5 +1,5 @@
 table:
-    posts:
+    - posts:
         name: posts
         primary_key: 
             key_id: ok
@@ -32,9 +32,8 @@ table:
                 name: updated_at
                 type: time
 
-    users:     
+    - users:     
         name: users
-        
         primary_key:
             - id
 

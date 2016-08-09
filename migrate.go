@@ -9,22 +9,24 @@ import (
 )
 
 var (
-	ErrEmpty       = errors.New("Required parameter is empty")
-	ErrTypeInvalid = errors.New("Invalid type error")
+	ErrEmpty        = errors.New("Required parameter is empty")
+	ErrTypeInvalid  = errors.New("Invalid type error")
+	ErrInvalidTable = errors.New("Invalid type name")
 )
 
 const (
-	TBLADD = iota
-	TBLDROP
-	TBLCHANGE
-	ADD
-	DROP
-	MODIFY
-	CHANGE
+	ADDTBL = iota
+	CHANGETBL
+	DROPTBL
+	ADDCLM
+	DROPCLM
+	MODIFYCLM
+	CHANGECLM
 	ADDPK
 	DROPPK
 	ADDINDEX
 	DROPINDEX
+	MODIFYAUTO
 	ADDFK
 	DROPFK
 )
@@ -65,23 +67,85 @@ type Sql struct {
 	Operations []Operation
 }
 
-func (s Sql) Check() {
+func (op Operation) Strings() string {
+	s := "OPERATION ---->>>>  "
+	switch op.OperationType {
+	case ADDTBL:
+		return s + fmt.Sprintf("ADD TABLE: [%s]\n", op.Table)
+	case CHANGETBL:
+		return s + fmt.Sprintf("CHANGE TABLE: [%s] -> [%s]\n", op.BeforeTable, op.Table)
+	case DROPTBL:
+		return s + fmt.Sprintf("DROP TABLE: [%s]\n", op.Table)
+	case ADDCLM:
+		return s + fmt.Sprintf("ADD COLUMN TO [%s]: [%s]\n", op.Table, op.Column.Name)
+	case DROPCLM:
+		return s + fmt.Sprintf("DROP COLUMN TO [%s]: [%s]\n", op.Table, op.Column.Name)
+	case MODIFYCLM:
+		return s + fmt.Sprintf("MODIFY COLUMN TO [%s]: [%s]\n", op.Table, op.Column.Name)
+	case CHANGECLM:
+		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table, op.Column.Name)
+	case ADDPK:
+		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]: [%s]\n", op.Table, op.PK.Name)
+	case DROPPK:
+		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s]\n", op.Table, op.PK.Name)
+	case ADDINDEX:
+		return s + fmt.Sprintf("ADD INDEX TO [%s]: [%s]\n", op.Table, op.Index.Name)
+	case DROPINDEX:
+		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: [%s]\n", op.Table, op.Index.Name)
+	case ADDFK:
+		return s + fmt.Sprintf("ADD FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table, op.Column.Name, op.FK.TargetColumn, op.FK.TargetTable)
+	case DROPFK:
+		return s + fmt.Sprintf("DROP FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table, op.Column.Name, op.FK.TargetColumn, op.FK.TargetTable)
+	default:
+		return s + fmt.Sprintln("CANT RECOGNIZE OPERATION")
+	}
+}
 
+func (s Sql) Check() {
+	fmt.Println("\n---------- DATABASE MIGRRATION IS .......\n\n")
+
+	fmt.Printf("DATABASE CONFIGURE: %s \n\n", s.DbConf.FormatDSN())
+	for _, op := range s.Operations {
+		if op.Column.Name == "padding" {
+			continue
+		}
+		fmt.Println(op.Strings())
+	}
 }
 
 func (s *State) ExistTable(st string) bool {
+	for _, v := range s.Table {
+		if v.Name == st {
+			return true
+		}
+	}
 	return false
 }
 
 func (t Table) ExistColumn(st string) bool {
+	for _, v := range t.Column {
+		if v.Name == st {
+			return true
+		}
+	}
 	return false
 }
 
 func (s *State) GetTable(st string) (Table, bool) {
+	for _, v := range s.Table {
+		if v.Name == st {
+			return v, true
+		}
+	}
 	return Table{}, false
 }
 
 func (t Table) GetColumn(st string) (Column, bool) {
+	for _, v := range t.Column {
+		if v.Name == st {
+			return v, true
+		}
+	}
 	return Column{}, false
 }
 
@@ -104,6 +168,16 @@ func GetColumnOperation(t Table, c Column, flag int) Operation {
 	}
 }
 
+func GetDropPaddingOperation(s string) Operation {
+	return Operation{
+		Table:         s,
+		OperationType: DROPCLM,
+		Column: Column{
+			Name: "padding",
+		},
+	}
+}
+
 func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 	// Setting database connection configure
@@ -113,6 +187,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			Addr:   n.Db.Addr,
 			Net:    "tcp",
 			Passwd: n.Db.Passwd,
+			DBName: n.Db.DBName,
 		},
 	}
 	// if given db connection data are odd, not lock old state
@@ -129,13 +204,13 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			if ok != true {
 				return nil, errors.New("In changing table, before table not exist : " + tab.BeforeName)
 			}
-			op = GetTableOperation(tab, TBLCHANGE)
+			op = GetTableOperation(tab, CHANGETBL)
 		} else {
 			ok := o.ExistTable(tab.Name)
 			if ok == true {
 				continue
 			}
-			op = GetTableOperation(tab, TBLADD)
+			op = GetTableOperation(tab, ADDTBL)
 		}
 		sql.Operations = append(sql.Operations, op)
 	}
@@ -155,14 +230,14 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 		// drop table
 		if b != true {
-			op = GetTableOperation(old, TBLDROP)
+			op = GetTableOperation(old, DROPTBL)
 			sql.Operations = append(sql.Operations, op)
 			continue
 		}
 
-		for _, oldcol := range old.Columns {
+		for _, oldcol := range old.Column {
 			b = false
-			for _, col := range tab.Columns {
+			for _, col := range tab.Column {
 				if oldcol.Name == col.Name || oldcol.Name == col.BeforeName {
 					b = true
 					break
@@ -171,7 +246,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 			// drop column
 			if b != true {
-				op = GetColumnOperation(tab, oldcol, DROP)
+				op = GetColumnOperation(tab, oldcol, DROPCLM)
 				sql.Operations = append(sql.Operations, op)
 			}
 		}
@@ -179,19 +254,18 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 	// add and change column check
 	for _, tab := range n.Table {
-		for _, col := range tab.Columns {
+		for _, col := range tab.Column {
 			var old Table
 			var ok bool
+
 			if tab.BeforeName != "" {
 				old, ok = o.GetTable(tab.BeforeName)
 				if ok != true {
-					continue
+					return nil, ErrInvalidTable
 				}
 			} else {
-				old, ok = o.GetTable(tab.Name)
-				if ok != true {
-					continue
-				}
+				// add and change column after creating new table
+				old, _ = o.GetTable(tab.Name)
 			}
 
 			var oldcol Column
@@ -201,24 +275,32 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 					return nil, errors.New("Declared before column not exist in old state :" + col.BeforeName)
 				}
 				// append operation to change column data
-				op = GetColumnOperation(tab, col, CHANGE)
+				op = GetColumnOperation(tab, col, CHANGECLM)
 				sql.Operations = append(sql.Operations, op)
 
 			} else {
 				oldcol, ok = old.GetColumn(col.Name)
 				// append operation to add column data
 				if ok != true {
-					op = GetColumnOperation(tab, col, ADD)
+					op = GetColumnOperation(tab, col, ADDCLM)
 					sql.Operations = append(sql.Operations, op)
 					continue
 				}
 			}
 			// append operation to change column data
 			if oldcol != col {
-				op = GetColumnOperation(tab, col, MODIFY)
+				op = GetColumnOperation(tab, col, MODIFYCLM)
 				sql.Operations = append(sql.Operations, op)
 				continue
 			}
+		}
+	}
+
+	// drop padding column in creating new table
+	for _, opr := range sql.Operations {
+		if opr.OperationType == ADDTBL {
+			op = GetDropPaddingOperation(opr.Table)
+			sql.Operations = append(sql.Operations, op)
 		}
 	}
 
@@ -261,7 +343,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 		}
 
 		var oldcol Column
-		for _, col := range tab.Columns {
+		for _, col := range tab.Column {
 			if col.BeforeName != "" {
 				oldcol, ok = old.GetColumn(col.BeforeName)
 				if ok != true {
@@ -289,11 +371,20 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 }
 
 func (c Operation) QueryBuilder() (string, error) {
-	q := fmt.Sprintf("ALTER TABLE %s", c.Table)
+	q := fmt.Sprintf("ALTER TABLE %s ", c.Table)
 
 	switch c.OperationType {
-	case ADD:
-		q += fmt.Sprintf("ADD COLUMN %s", c.Column.Name)
+	case ADDTBL:
+		q = fmt.Sprintf("CREATE TABLE %s (padding int)", c.Table)
+		return q, nil
+	case CHANGETBL:
+		q = fmt.Sprintf("ALTER TABLE %s RENAME %s", c.BeforeTable, c.Table)
+		return q, nil
+	case DROPTBL:
+		q = fmt.Sprintf("DROP TABLE %S", c.Table)
+		return q, nil
+	case ADDCLM:
+		q += fmt.Sprintf("ADD COLUMN %s %s", c.Column.Name, c.Column.Type)
 		if c.Column.AutoIncrementFlag == true {
 			q += " AUTO_INCREMENT"
 		}
@@ -305,11 +396,11 @@ func (c Operation) QueryBuilder() (string, error) {
 		}
 		return q, nil
 
-	case DROP:
+	case DROPCLM:
 		q += fmt.Sprintf("DROP %s", c.Column.Name)
 		return q, nil
 
-	case MODIFY:
+	case MODIFYCLM:
 		q += fmt.Sprintf("MODIFY %s", c.Column.Name)
 		if c.Column.AutoIncrementFlag == true {
 			q += " AUTO_INCREMENT"
@@ -322,7 +413,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		}
 		return q, nil
 
-	case CHANGE:
+	case CHANGECLM:
 		q += fmt.Sprintf("CHANGE COLUMN %s %s", c.Column.BeforeName, c.Column.Name)
 		if c.Column.AutoIncrementFlag == true {
 			q += " AUTO_INCREMENT"
@@ -337,30 +428,52 @@ func (c Operation) QueryBuilder() (string, error) {
 
 	case ADDPK:
 		pk := ""
-		for _, i := range c.PK.Target {
-			pk += i + ","
+		if len(c.PK.Target) == 1 {
+			pk = c.PK.Target[0]
+		} else {
+			for _, i := range c.PK.Target {
+				pk += i + ","
+			}
+			pk = pk[:len(pk)-1]
 		}
-		q += fmt.Sprint("ADD PRIMARY KEY %s (%s)", c.PK.Name, pk)
+		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.PK.Name, pk)
 		return q, nil
 
 	case DROPPK:
-		q += fmt.Sprint("DROP PRIMARY KEY %s", c.PK.Name)
+		q += fmt.Sprintf("DROP PRIMARY KEY %s", c.PK.Name)
 		return q, nil
 
 	case ADDINDEX:
 		idx := ""
-		for _, i := range c.Index.Target {
-			idx += i + ","
+		if len(c.Index.Target) == 1 {
+			idx = c.Index.Target[0]
+		} else {
+			for _, i := range c.Index.Target {
+				idx += i + ","
+			}
 		}
-		q += fmt.Sprintf("ADD INDEX  %s (%s)", c.Index.Name, idx)
+		q += fmt.Sprintf("ADD CONSTRAINT %s  INDEX  %s (%s)", c.Index.Name, idx)
 		return q, nil
 
 	case DROPINDEX:
-		q += fmt.Sprint("DROP INDEX %s", c.Index.Name)
+		q += fmt.Sprintf("DROP INDEX %s", c.Index.Name)
+		return q, nil
+
+	case MODIFYAUTO:
+		q += fmt.Sprintf("MODIFY %s", c.Column.Name)
+		if c.Column.AutoIncrementFlag == true {
+			q += " AUTO_INCREMENT"
+		}
+		if c.Column.NotNullFlag == true {
+			q += " NOT NULL"
+		}
+		if c.Column.UniqueFlag == true {
+			q += " UNIQUE"
+		}
 		return q, nil
 
 	case ADDFK:
-		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGM KEY %s REFERENCE %s(%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
+		q += fmt.Sprintf("ADD CONSTRAINT %s CONSTRAINT %s FOREIGM KEY %s REFERENCE %s(%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
 		return q, nil
 
 	case DROPFK:
@@ -380,7 +493,7 @@ func (s *Sql) Migrate() error {
 	}
 	defer db.Close()
 
-	qs := make([]string, len(s.Operations))
+	var qs []string
 	for _, c := range s.Operations {
 		q, err := c.QueryBuilder()
 		if err != nil {
@@ -390,6 +503,7 @@ func (s *Sql) Migrate() error {
 	}
 
 	for _, q := range qs {
+		fmt.Println(q)
 		_, err = db.Exec(q)
 		if err != nil {
 			return errors.Wrapf(err, "Query: %s", q)

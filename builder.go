@@ -2,6 +2,7 @@ package mig
 
 import (
 	"io/ioutil"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/lestrrat/go-jshschema"
@@ -10,8 +11,9 @@ import (
 )
 
 type State struct {
-	Db    Db      `json:"db"`
-	Table []Table `json:"table"`
+	Db       Db        `json:"db"`
+	Table    []Table   `json:"table"`
+	UpdateAt time.Time `json:"updated_at"`
 }
 
 type Db struct {
@@ -26,11 +28,13 @@ type Table struct {
 	Name       string   `json:"name"`
 	PrimaryKey Key      `json:"primary_key"`
 	Index      Key      `json:"index"`
-	Columns    []Column `json:"column"`
+	Column     []Column `json:"column"`
 }
 
 func StateNew() *State {
-	return &State{}
+	return &State{
+		UpdateAt: time.Now(),
+	}
 }
 
 func ParseState(s string) (*State, error) {
@@ -38,7 +42,11 @@ func ParseState(s string) (*State, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "YAML file open error")
 	}
+
 	st := StateNew()
+	if len(b) == 0 {
+		return st, nil
+	}
 	err = yaml.Unmarshal(b, st)
 	if err != nil {
 		return nil, errors.Wrap(err, "YAML file parse error")
@@ -62,6 +70,9 @@ func (db *Db) ParseSchema2Db(d *hschema.HyperSchema) error {
 			db.User = st
 
 		case "passwd":
+			if v == nil {
+				continue
+			}
 			st, ok := v.(string)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
@@ -102,6 +113,12 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
 			c.Name = st
+		case "type":
+			st, ok := v.(string)
+			if ok != true {
+				return errors.Wrap(ErrTypeInvalid, k)
+			}
+			c.Type = st
 		case "before_name":
 			st, ok := v.(string)
 			if ok != true {
@@ -142,17 +159,60 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 	for k, v := range table {
 		switch k {
 		case "primary_key":
-			a, ok := v.([]string)
+			var pk []string
+
+			key, ok := v.(map[string]interface{})
+			if ok != true {
+				return errors.Wrapf(ErrTypeInvalid, k)
+			}
+
+			n, ok := key["name"].(string)
+			if ok != true {
+				return errors.Wrapf(ErrTypeInvalid, k)
+			}
+
+			is, ok := key["key"].([]interface{})
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			t.PrimaryKey.Target = a
+			for _, i := range is {
+				st, ok := i.(string)
+				if ok != true {
+					return errors.Wrap(ErrTypeInvalid, k)
+				}
+				pk = append(pk, st)
+			}
+
+			t.PrimaryKey.Name = n
+			t.PrimaryKey.Target = pk
+
 		case "index":
-			a, ok := v.([]string)
+			var idx []string
+
+			key, ok := v.(map[string]interface{})
+			if ok != true {
+				return errors.Wrapf(ErrTypeInvalid, k)
+			}
+
+			n, ok := key["name"].(string)
+			if ok != true {
+				return errors.Wrapf(ErrTypeInvalid, k)
+			}
+			is, ok := v.([]interface{})
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			t.Index.Target = a
+			for _, i := range is {
+				st, ok := i.(string)
+				if ok != true {
+					return errors.Wrap(ErrTypeInvalid, k)
+				}
+				idx = append(idx, st)
+			}
+
+			t.Index.Name = n
+			t.Index.Target = idx
+
 		case "before_name":
 			st, ok := v.(string)
 			if ok != true {
@@ -178,7 +238,7 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 		if err != nil {
 			return errors.Wrapf(err, "Parse %s column error", k)
 		}
-		t.Columns = append(t.Columns, *c)
+		t.Column = append(t.Column, *c)
 
 	}
 
@@ -236,6 +296,16 @@ func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 	return s, err
 }
 
-func (s *State) Update() error {
+func (s *State) Update(path string) error {
+	b, err := yaml.Marshal(s)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(path, b, 0777)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
