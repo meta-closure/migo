@@ -1,0 +1,13 @@
+package: mig
+import:
+- package: github.com/Sirupsen/logrus
+  version: ~0.10.0
+- package: github.com/ghodss/yaml
+- package: github.com/go-sql-driver/mysql
+  version: ~1.2.0
+- package: github.com/jessevdk/go-flags
+  version: ~1.0.0
+- package: github.com/lestrrat/go-jshschema
+- package: github.com/lestrrat/go-jsschema
+- package: github.com/pkg/errors
+  version: ~0.7.0
