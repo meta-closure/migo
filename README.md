@@ -10,7 +10,7 @@ mig -y /path/to/schema.yml -i /path/to/internal.yml
 
 ### Database configure Sample
 
-Read db tag and create DSN(Data Source Name) to connect Database.
+Read db tag and create DSN(Data Source Name) to connect your database.
 
 ```yaml:
 db:
@@ -23,7 +23,7 @@ db:
 
 ### Table Configure Sample
 
-Read table tag and Modify Table setting, set Primary Key or Index Key.
+Read table tag and modify a table setting, set a primary key or a index key.
 
 ```yaml:
 table:
@@ -39,9 +39,9 @@ table:
 
 ### Column Configure Sample
 
-Read column tag and Modify Column setting, set Foreing Key.
-If you se foreign key using mig, Should set foreign key name
-to modify key setting.
+Read column tag and modify a column setting, set foreign key.
+If you want to use foreign key in using mig, you should set the foreign key name,
+to modify foreign key setting.
 
 ```yaml:
 
