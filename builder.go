@@ -59,6 +59,7 @@ func (db *Db) ParseSchema2Db(d *hschema.HyperSchema) error {
 	if d.Extras["db"] == nil {
 		return ErrEmpty
 	}
+
 	conn := d.Extras["db"].(map[string]interface{})
 	for k, v := range conn {
 		switch k {
@@ -144,6 +145,31 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
 			c.NotNullFlag = b
+		case "foreign_key":
+			fk, ok := v.(map[string]interface{})
+			if ok != true {
+				return errors.Wrap(ErrTypeInvalid, k)
+			}
+			if fk["name"] != nil {
+				nm, _ := fk["name"].(string)
+				c.FK.Name = nm
+			} else {
+				return errors.Wrap(ErrEmpty, "foreign key's name")
+			}
+
+			if fk["target_table"] != nil {
+				tt, _ := fk["target_table"].(string)
+				c.FK.TargetTable = tt
+			} else {
+				return errors.Wrap(ErrEmpty, "foreign key's target table")
+			}
+
+			if fk["target_column"] != nil {
+				tc, _ := fk["target_column"].(string)
+				c.FK.TargetColumn = tc
+			} else {
+				return errors.Wrap(ErrEmpty, "foreign key's target column")
+			}
 		}
 	}
 	return nil
@@ -228,7 +254,7 @@ func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 	s := StateNew()
 	err := s.Db.ParseSchema2Db(h)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Parsing Db parameter: ")
 	}
 	for k, v := range h.Definitions {
 		if v.Extras["table"] == nil {

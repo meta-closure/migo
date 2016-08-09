@@ -434,7 +434,6 @@ func TestSQLBuildAddAutoIncrement(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 2 {
-		t.Log(sql.Operations)
 		t.Error("Should build 2 operation")
 	}
 
@@ -444,5 +443,97 @@ func TestSQLBuildAddAutoIncrement(t *testing.T) {
 
 	if sql.Operations[1].OperationType != MODIFYAICLM {
 		t.Error("Should Second Operation's OperationType MODIFYAICLM")
+	}
+}
+
+func TestSQLBuildAddFK(t *testing.T) {
+	o := StateNew()
+	n := StateNew()
+
+	o.Table = []Table{Table{
+		Name: "test_table",
+		PrimaryKey: Key{
+			Target: []string{"test_column"},
+		},
+		Column: []Column{Column{
+			Name: "test_column",
+			Type: "int",
+		}},
+	}}
+
+	n.Table = []Table{Table{
+		Name: "test_table",
+		PrimaryKey: Key{
+			Target: []string{"test_column"},
+		},
+		Column: []Column{Column{
+			Name: "test_column",
+			Type: "int",
+			FK: ForeignKey{
+				Name:         "test2test",
+				TargetColumn: "test_column_parent",
+				TargetTable:  "test_table_parent",
+			},
+		}},
+	}}
+
+	sql, err := o.SQLBuilder(n)
+
+	if err != nil {
+		t.Error("Build error: %s", err)
+	}
+
+	if len(sql.Operations) != 1 {
+		t.Error("Should build 1 operation")
+	}
+
+	if sql.Operations[0].OperationType != ADDFK {
+		t.Error("Should OperationType ADDFK")
+	}
+}
+
+func TestSQLBuildDropFK(t *testing.T) {
+	o := StateNew()
+	n := StateNew()
+
+	n.Table = []Table{Table{
+		Name: "test_table",
+		PrimaryKey: Key{
+			Target: []string{"test_column"},
+		},
+		Column: []Column{Column{
+			Name: "test_column",
+			Type: "int",
+		}},
+	}}
+
+	o.Table = []Table{Table{
+		Name: "test_table",
+		PrimaryKey: Key{
+			Target: []string{"test_column"},
+		},
+		Column: []Column{Column{
+			Name: "test_column",
+			Type: "int",
+			FK: ForeignKey{
+				Name:         "test2test",
+				TargetColumn: "test_column_parent",
+				TargetTable:  "test_table_parent",
+			},
+		}},
+	}}
+
+	sql, err := o.SQLBuilder(n)
+
+	if err != nil {
+		t.Error("Build error: %s", err)
+	}
+
+	if len(sql.Operations) != 1 {
+		t.Error("Should build 1 operation")
+	}
+
+	if sql.Operations[0].OperationType != DROPFK {
+		t.Error("Should OperationType DROPFK")
 	}
 }

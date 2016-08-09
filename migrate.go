@@ -67,7 +67,7 @@ type Sql struct {
 }
 
 func (op Operation) Strings() string {
-	s := "OPERATION ---->>>>  "
+	s := "OPERATION >>>>>>>>>    "
 	switch op.OperationType {
 	case ADDTBL:
 		return s + fmt.Sprintf("ADD TABLE: [%s]\n", op.Table)
@@ -184,6 +184,19 @@ func GetDropPaddingOperation(s string) Operation {
 	}
 }
 
+func SameFlag(o, n Column) bool {
+	if o.NotNullFlag != n.NotNullFlag {
+		return false
+	}
+	if o.UniqueFlag != n.UniqueFlag {
+		return false
+	}
+	if o.AutoIncrementFlag != n.AutoIncrementFlag {
+		return false
+	}
+	return true
+}
+
 func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 	// Setting database connection configure
@@ -294,8 +307,15 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 				}
 			}
 			// append operation to change column data
-			if oldcol != col {
-				op = GetColumnOperation(tab, col, MODIFYCLM)
+			if SameFlag(oldcol, col) != true {
+				if oldcol.AutoIncrementFlag == true {
+					op = GetColumnOperation(tab, col, MODIFYAICLM)
+				} else if oldcol.AutoIncrementFlag != col.AutoIncrementFlag {
+					continue
+				} else {
+					op = GetColumnOperation(tab, col, MODIFYCLM)
+
+				}
 				sql.Operations = append(sql.Operations, op)
 				continue
 			}
@@ -332,8 +352,10 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			// check column have auto_increment flag
 			for _, idx := range op.Index.Target {
 				col, _ := tab.GetColumn(idx)
-				op = GetColumnOperation(tab, col, MODIFYAICLM)
-				sql.Operations = append(sql.Operations, op)
+				if col.AutoIncrementFlag == true {
+					op = GetColumnOperation(tab, col, MODIFYAICLM)
+					sql.Operations = append(sql.Operations, op)
+				}
 			}
 		}
 
@@ -345,8 +367,10 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			// check column have auto_increment flag
 			for _, pk := range op.PK.Target {
 				col, _ := tab.GetColumn(pk)
-				op = GetColumnOperation(tab, col, MODIFYAICLM)
-				sql.Operations = append(sql.Operations, op)
+				if col.AutoIncrementFlag == true {
+					op = GetColumnOperation(tab, col, MODIFYAICLM)
+					sql.Operations = append(sql.Operations, op)
+				}
 			}
 		}
 
