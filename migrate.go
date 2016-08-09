@@ -32,7 +32,6 @@ const (
 )
 
 type Key struct {
-	Name   string
 	Target []string
 }
 
@@ -87,13 +86,13 @@ func (op Operation) Strings() string {
 	case CHANGECLM:
 		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table, op.Column.Name)
 	case ADDPK:
-		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]: [%s]\n", op.Table, op.PK.Name)
+		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]: [%s]\n", op.Table, op.PK.Target)
 	case DROPPK:
-		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s]\n", op.Table, op.PK.Name)
+		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s]\n", op.Table, op.PK.Target)
 	case ADDINDEX:
-		return s + fmt.Sprintf("ADD INDEX TO [%s]: [%s]\n", op.Table, op.Index.Name)
+		return s + fmt.Sprintf("ADD INDEX TO [%s]: [%s]\n", op.Table, op.Index.Target)
 	case DROPINDEX:
-		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: [%s]\n", op.Table, op.Index.Name)
+		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: [%s]\n", op.Table, op.Index.Target)
 	case ADDFK:
 		return s + fmt.Sprintf("ADD FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table, op.Column.Name, op.FK.TargetColumn, op.FK.TargetTable)
 	case DROPFK:
@@ -462,11 +461,11 @@ func (c Operation) QueryBuilder() (string, error) {
 			}
 			pk = pk[:len(pk)-1]
 		}
-		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.PK.Name, pk)
+		q += fmt.Sprintf("ADD PRIMARY KEY (%s)", pk)
 		return q, nil
 
 	case DROPPK:
-		q += fmt.Sprintf("DROP PRIMARY KEY %s", c.PK.Name)
+		q += "DROP PRIMARY KEY"
 		return q, nil
 
 	case ADDINDEX:
@@ -478,15 +477,15 @@ func (c Operation) QueryBuilder() (string, error) {
 				idx += i + ","
 			}
 		}
-		q += fmt.Sprintf("ADD CONSTRAINT %s  INDEX  %s (%s)", c.Index.Name, idx)
+		q += fmt.Sprintf("ADD INDEX (%s)", idx)
 		return q, nil
 
 	case DROPINDEX:
-		q += fmt.Sprintf("DROP INDEX %s", c.Index.Name)
+		q += "DROP INDEX"
 		return q, nil
 
 	case ADDFK:
-		q += fmt.Sprintf("ADD CONSTRAINT %s CONSTRAINT %s FOREIGM KEY %s REFERENCE %s(%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
+		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGM KEY %s REFERENCE %s(%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
 		return q, nil
 
 	case DROPFK:

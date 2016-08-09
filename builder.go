@@ -161,17 +161,7 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 		case "primary_key":
 			var pk []string
 
-			key, ok := v.(map[string]interface{})
-			if ok != true {
-				return errors.Wrapf(ErrTypeInvalid, k)
-			}
-
-			n, ok := key["name"].(string)
-			if ok != true {
-				return errors.Wrapf(ErrTypeInvalid, k)
-			}
-
-			is, ok := key["key"].([]interface{})
+			is, ok := v.([]interface{})
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
@@ -183,21 +173,11 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 				pk = append(pk, st)
 			}
 
-			t.PrimaryKey.Name = n
 			t.PrimaryKey.Target = pk
 
 		case "index":
 			var idx []string
 
-			key, ok := v.(map[string]interface{})
-			if ok != true {
-				return errors.Wrapf(ErrTypeInvalid, k)
-			}
-
-			n, ok := key["name"].(string)
-			if ok != true {
-				return errors.Wrapf(ErrTypeInvalid, k)
-			}
 			is, ok := v.([]interface{})
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
@@ -210,7 +190,6 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 				idx = append(idx, st)
 			}
 
-			t.Index.Name = n
 			t.Index.Target = idx
 
 		case "before_name":
