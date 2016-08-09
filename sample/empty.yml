@@ -6,17 +6,7 @@ db:
 table:
 - before_name: ""
   column:
-  - auto_increment: false
-    before_name: ""
-    foreign_key:
-      name: ""
-      target_column: ""
-      target_table: ""
-    name: body
-    not_null: false
-    type: varchar(255)
-    unique: false
-  - auto_increment: false
+  - auto_increment: true
     before_name: ""
     foreign_key:
       name: ""
@@ -24,16 +14,6 @@ table:
       target_table: ""
     name: post_id
     not_null: true
-    type: varchar(255)
-    unique: false
-  - auto_increment: false
-    before_name: ""
-    foreign_key:
-      name: ""
-      target_column: ""
-      target_table: ""
-    name: test
-    not_null: false
     type: int
     unique: false
   - auto_increment: false
@@ -43,6 +23,16 @@ table:
       target_column: ""
       target_table: ""
     name: title
+    not_null: false
+    type: varchar(255)
+    unique: false
+  - auto_increment: false
+    before_name: ""
+    foreign_key:
+      name: ""
+      target_column: ""
+      target_table: ""
+    name: body
     not_null: false
     type: varchar(255)
     unique: false
@@ -56,6 +46,16 @@ table:
     - post_id
 - before_name: ""
   column:
+  - auto_increment: true
+    before_name: ""
+    foreign_key:
+      name: ""
+      target_column: ""
+      target_table: ""
+    name: user_id
+    not_null: true
+    type: int
+    unique: false
   - auto_increment: false
     before_name: ""
     foreign_key:
@@ -66,16 +66,6 @@ table:
     not_null: false
     type: varchar(255)
     unique: false
-  - auto_increment: false
-    before_name: ""
-    foreign_key:
-      name: ""
-      target_column: ""
-      target_table: ""
-    name: user_id
-    not_null: true
-    type: int
-    unique: false
   index:
     Name: ""
     Target: null
@@ -84,4 +74,4 @@ table:
     Name: user_id
     Target:
     - user_id
-updated_at: "2016-08-09T14:39:45.472981356+09:00"
+updated_at: "2016-08-09T15:06:55.137167854+09:00"

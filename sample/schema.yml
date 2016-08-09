@@ -68,7 +68,7 @@ definitions:
                     name: user_id
                     type: int
                     not_null: true
-
+                    auto_increment: true
                 $ref: '#/definitions/user_id'
             screen_name:
                 column:
@@ -86,18 +86,12 @@ definitions:
                 key:
                     - post_id
         properties:
-            test:
-                column:
-                    name: test
-                    type: int
-                    not_null: true
-                $ref: "#/definitions/body"
-
             post_id:
                 column:
                     not_null: true
                     name: post_id
-                    type: varchar(255)
+                    type: int
+                    auto_increment: true
                 $ref: '#/definitions/post_id'
             
             title:
