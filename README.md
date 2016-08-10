@@ -4,7 +4,7 @@
 
 ```sh:
 
-go get -u github.com/meta-closure/migo
+go get -u github.com/meta-closure/migo/cmd/migo
 
 ```
 
@@ -71,3 +71,7 @@ column:
         target_column: fk_column
         
 ```
+
+# TODO
+
+- ROLLBACK
