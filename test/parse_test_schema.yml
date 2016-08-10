@@ -1,0 +1,33 @@
+
+db:
+    user: test_user
+    passwd: test_pass
+    addr: test_addr
+    dbname: test_db
+
+definitions:
+    post:
+        type: object
+        title: test
+        table:
+            name: test
+            before_name: before_test
+            primary_key: 
+                - test1
+                - test2
+            index:
+                - test1
+                - test2
+        properties:
+            post_id:
+                column:
+                    before_name: before_test
+                    not_null: true
+                    name: test_column
+                    type: test_type
+                    auto_increment: true
+                    unique: true
+                    foreign_key:
+                        name: fk_test
+                        target_table: fk_table
+                        target_column: fk_column
