@@ -1,17 +1,25 @@
 # Migration tool generaterd from JSON Schema file
 
+## Install
+
+```sh:
+
+go get -u github.com/meta-closure/migo
+
+```
+
 ## Usage
 Read a (extended) JSON Schema file and migrate database table status.
 
 ```sh:
-mig -y /path/to/schema.yml -s /path/to/internal.yml run
+migo -y /path/to/schema.yml -s /path/to/internal.yml run
 ```
 
-Before migrate, you might check a operation what mig do,
+Before migrate, you might check a operation what migo do,
 Plan command enable to see operation list
 
 ```sh;
-mig -y /path/to/schema.yml -s /path/to/internal.yml plan
+migo -y /path/to/schema.yml -s /path/to/internal.yml plan
 ```
 
 ## Sample Schema Description
@@ -48,7 +56,7 @@ table:
 ### Column Configure Sample
 
 Read column tag and modify a column setting, set foreign key.
-If you want to use foreign key in using mig, you should set the foreign key name,
+If you want to use foreign key in using migo, you should set the foreign key name,
 to modify foreign key setting.
 
 ```yaml:
