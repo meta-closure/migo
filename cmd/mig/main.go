@@ -2,10 +2,10 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"mig"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
 	"github.com/lestrrat/go-jshschema"
 	"github.com/pkg/errors"
@@ -140,7 +140,7 @@ func _cmd() int {
 	cmd := SetupCmd()
 	err := cmd.Run(os.Args)
 	if err != nil {
-		log.Error(err)
+		log.Println(err)
 		return 1
 	}
 	return 0

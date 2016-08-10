@@ -1,7 +1,5 @@
 package: mig
 import:
-- package: github.com/Sirupsen/logrus
-  version: ~0.10.0
 - package: github.com/ghodss/yaml
 - package: github.com/go-sql-driver/mysql
   version: 0b58b37b664c21f3010e836f1b931e1d0b0b0685
@@ -11,3 +9,5 @@ import:
 - package: github.com/lestrrat/go-jsschema
 - package: github.com/pkg/errors
   version: ~0.7.0
+- package: github.com/urfave/cli
+  version: v1.18.0
