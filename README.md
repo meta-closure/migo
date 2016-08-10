@@ -2,8 +2,16 @@
 
 ## Usage
 Read a (extended) JSON Schema file and migrate database table status.
+
 ```sh:
-mig -y /path/to/schema.yml -i /path/to/internal.yml
+mig -y /path/to/schema.yml -s /path/to/internal.yml run
+```
+
+Before migrate, you might check a operation what mig do,
+Plan command enable to see operation list
+
+```sh;
+mig -y /path/to/schema.yml -s /path/to/internal.yml plan
 ```
 
 ## Sample Schema Description
