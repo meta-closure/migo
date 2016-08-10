@@ -3,7 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"log"
-	"mig"
+	"migo"
 	"os"
 
 	"github.com/ghodss/yaml"
@@ -59,12 +59,14 @@ func Parse(c *cli.Context, mode string) error {
 	h := hschema.New()
 	if j := c.GlobalString("json"); j != "" {
 		err := ParseSchemaJSON(h, j)
-		return errors.Wrap(err, "Parse Schema error")
-
+		if err != nil {
+			return errors.Wrap(err, "Parse Schema error")
+		}
 	} else if y := c.GlobalString("yaml"); y != "" {
 		err := ParseSchemaYAML(h, y)
-		return errors.Wrap(err, "Parse Schema error")
-
+		if err != nil {
+			return errors.Wrap(err, "Parse Schema error")
+		}
 	} else {
 		return errors.New("Source Schema is not specified")
 	}
@@ -100,8 +102,6 @@ func Parse(c *cli.Context, mode string) error {
 	if err != nil {
 		return errors.Wrap(err, "Database migration error")
 	}
-
-	return nil
 
 	err = n.Update(s)
 	if err != nil {

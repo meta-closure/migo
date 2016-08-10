@@ -398,14 +398,17 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			}
 
 			// add FK
+
 			if oldcol.FK.TargetColumn == "" && col.FK.TargetColumn != "" {
-				op = GetTableOperation(tab, ADDFK)
+				op = GetColumnOperation(tab, col, ADDFK)
+				op.FK = col.FK
 				sql.Operations = append(sql.Operations, op)
 			}
 
 			// drop FK
 			if oldcol.FK.TargetColumn != "" && col.FK.TargetColumn == "" {
-				op = GetTableOperation(tab, DROPFK)
+				op = GetColumnOperation(tab, oldcol, DROPFK)
+				op.FK = oldcol.FK
 				sql.Operations = append(sql.Operations, op)
 			}
 		}
@@ -509,7 +512,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		return q, nil
 
 	case ADDFK:
-		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGM KEY %s REFERENCE %s(%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
+		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
 		return q, nil
 
 	case DROPFK:
@@ -539,7 +542,6 @@ func (s *Sql) Migrate() error {
 	}
 
 	for _, q := range qs {
-		fmt.Println(q)
 		_, err = db.Exec(q)
 		if err != nil {
 			return errors.Wrapf(err, "Query: %s", q)
