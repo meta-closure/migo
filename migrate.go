@@ -548,5 +548,6 @@ func (s *Sql) Migrate() error {
 		}
 	}
 
+	fmt.Println(">>>>>>>> MIGRATION SUCCEED")
 	return nil
 }
