@@ -40,11 +40,15 @@ db:
 ### Table Configure Sample
 
 Read table tag and modify a table setting, set a primary key or a index key.
+migo identify each table and column in their hash table key,
+so if you want to change a table name, you just overide name.
+
+primary key and index only specify key name.
+
 
 ```yaml:
-table:
+key:
     name: sample
-    before_name: use_for_rename_table
     primary_key:
         - pk1
         - pk2
@@ -62,7 +66,6 @@ to modify foreign key setting.
 ```yaml:
 
 column:
-    before_name: use_for_rename_table
     not_null: true
     name: column_sample
     foreign_key:
@@ -72,6 +75,7 @@ column:
         
 ```
 
-# TODO
 
-- ROLLBACK
+## Rollback
+
+If you might to Rollback. you just run specify a previous JSON Schema file or State file.

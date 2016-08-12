@@ -52,14 +52,10 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should exist test_addr address")
 	}
 
-	tbl, ok := s.GetTable("test")
+	tbl, ok := s.GetTable("test_table")
 
 	if ok != true {
 		t.Error("Should exist test table")
-	}
-
-	if tbl.BeforeName != "before_test" {
-		t.Error("Should name is before_test")
 	}
 
 	if len(tbl.Index.Target) != 2 {
@@ -78,10 +74,6 @@ func TestScm2State(t *testing.T) {
 
 	if ok != true {
 		t.Error("Should exist test_column column")
-	}
-
-	if col.BeforeName != "before_test" {
-		t.Error("Should column before_column is before_test")
 	}
 
 	if col.Type != "test_type" {

@@ -6,7 +6,7 @@ db:
     dbname: test_db
 
 definitions:
-    post:
+    test_table:
         type: object
         title: test
         table:
@@ -19,7 +19,7 @@ definitions:
                 - test1
                 - test2
         properties:
-            post_id:
+            test_column:
                 column:
                     before_name: before_test
                     not_null: true

@@ -1,16 +1,79 @@
 package migo
 
-import (
-	"testing"
-)
+import "testing"
+
+// test case state that have normal table setting
+func TableCase() *State {
+	st := StateNew()
+
+	st.Table = []Table{
+		Table{
+			Id:   "test_table_id",
+			Name: "test_table_name",
+		},
+	}
+
+	return st
+}
+
+// test case state that have normal column setting
+func ColumnCase() *State {
+	st := TableCase()
+
+	st.Table[0].Column = []Column{
+		Column{
+			Id:   "test_column_id",
+			Name: "test_column",
+			Type: "int",
+		},
+	}
+
+	return st
+}
+
+// test case state that have primary key
+func PKCase() *State {
+	st := ColumnCase()
+
+	st.Table[0].PrimaryKey = Key{
+		Target: []string{"test_column_id"},
+	}
+
+	return st
+}
+
+// test case state that have index
+func IndexCase() *State {
+	st := ColumnCase()
+
+	st.Table[0].Index = Key{
+		Target: []string{"test_column_id"},
+	}
+
+	return st
+}
+
+// test case state that have foreign key
+func FKCase() *State {
+	st := PKCase()
+
+	st.Table[0].Column = []Column{Column{
+		Name: "test_column",
+		Id:   "test_column_id",
+		Type: "int",
+		FK: ForeignKey{
+			Name:         "test2test",
+			TargetColumn: "test_column_parent",
+			TargetTable:  "test_table_parent",
+		},
+	}}
+
+	return st
+}
 
 func TestSQLBuildAddTable(t *testing.T) {
 	o := StateNew()
-	n := StateNew()
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-	}}
+	n := TableCase()
 
 	sql, err := o.SQLBuilder(n)
 	if err != nil {
@@ -18,7 +81,7 @@ func TestSQLBuildAddTable(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 2 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != ADDTBL {
@@ -31,12 +94,8 @@ func TestSQLBuildAddTable(t *testing.T) {
 }
 
 func TestSQLBuildDropTable(t *testing.T) {
-	o := StateNew()
+	o := TableCase()
 	n := StateNew()
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-	}}
 
 	sql, err := o.SQLBuilder(n)
 	if err != nil {
@@ -44,7 +103,7 @@ func TestSQLBuildDropTable(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != DROPTBL {
@@ -54,17 +113,10 @@ func TestSQLBuildDropTable(t *testing.T) {
 }
 
 func TestSQLBuildRenameTable(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
+	o := TableCase()
+	n := TableCase()
 
-	o.Table = []Table{Table{
-		Name: "test_table",
-	}}
-
-	n.Table = []Table{Table{
-		BeforeName: "test_table",
-		Name:       "test_table_new",
-	}}
+	n.Table[0].Name = "new_name"
 
 	sql, err := o.SQLBuilder(n)
 	if err != nil {
@@ -72,7 +124,7 @@ func TestSQLBuildRenameTable(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != CHANGETBL {
@@ -93,20 +145,8 @@ func TestSQLBuildEmptyState(t *testing.T) {
 }
 
 func TestSQLBuildAddColumn(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-	}}
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := TableCase()
+	n := ColumnCase()
 
 	sql, err := o.SQLBuilder(n)
 	if err != nil {
@@ -114,7 +154,7 @@ func TestSQLBuildAddColumn(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != ADDCLM {
@@ -124,20 +164,8 @@ func TestSQLBuildAddColumn(t *testing.T) {
 }
 
 func TestSQLBuildDropColumn(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-	}}
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := ColumnCase()
+	n := TableCase()
 
 	sql, err := o.SQLBuilder(n)
 	if err != nil {
@@ -145,7 +173,7 @@ func TestSQLBuildDropColumn(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != DROPCLM {
@@ -156,47 +184,25 @@ func TestSQLBuildDropColumn(t *testing.T) {
 
 func TestSQLBuildSameColumn(t *testing.T) {
 
-	o := StateNew()
-	n := StateNew()
-	n.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := ColumnCase()
+	n := ColumnCase()
 
-	o.Table = n.Table
 	sql, err := o.SQLBuilder(n)
 	if err != nil {
 		t.Error("Build error: %s", err)
 	}
 
 	if len(sql.Operations) != 0 {
-		t.Error("Should build 0 peration")
+		t.Fatal("Should build 0 peration")
 	}
 
 }
 
 func TestSQLBuildOddColumn(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-	n.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name:        "test_column",
-			Type:        "int",
-			NotNullFlag: true,
-		}},
-	}}
+	o := ColumnCase()
+	n := ColumnCase()
 
-	o.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	n.Table[0].Column[0].UniqueFlag = true
 
 	sql, err := o.SQLBuilder(n)
 
@@ -205,34 +211,19 @@ func TestSQLBuildOddColumn(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 0 peration")
+		t.Fatal("Should build 0 peration")
 	}
 
 	if sql.Operations[0].OperationType != MODIFYCLM {
 		t.Error("Should OperationType MODIFYCLM")
 	}
-
 }
 
 func TestSQLBuildRenameColumn(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-	o.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := ColumnCase()
+	n := ColumnCase()
 
-	n.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			BeforeName: "test_column",
-			Name:       "test_column_new",
-			Type:       "int",
-		}},
-	}}
+	n.Table[0].Column[0].Name = "test_new_name"
 
 	sql, err := o.SQLBuilder(n)
 
@@ -241,7 +232,7 @@ func TestSQLBuildRenameColumn(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != CHANGECLM {
@@ -251,27 +242,8 @@ func TestSQLBuildRenameColumn(t *testing.T) {
 }
 
 func TestSQLBuildAddPK(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-		PrimaryKey: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := ColumnCase()
+	n := PKCase()
 
 	sql, err := o.SQLBuilder(n)
 
@@ -280,7 +252,7 @@ func TestSQLBuildAddPK(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != ADDPK {
@@ -289,27 +261,8 @@ func TestSQLBuildAddPK(t *testing.T) {
 }
 
 func TestSQLBuildDropPK(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-		PrimaryKey: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := PKCase()
+	n := ColumnCase()
 
 	sql, err := o.SQLBuilder(n)
 
@@ -318,7 +271,7 @@ func TestSQLBuildDropPK(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != DROPPK {
@@ -327,27 +280,8 @@ func TestSQLBuildDropPK(t *testing.T) {
 }
 
 func TestSQLBuildAddIndex(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-		Index: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := ColumnCase()
+	n := IndexCase()
 
 	sql, err := o.SQLBuilder(n)
 
@@ -356,7 +290,7 @@ func TestSQLBuildAddIndex(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != ADDINDEX {
@@ -365,27 +299,8 @@ func TestSQLBuildAddIndex(t *testing.T) {
 }
 
 func TestSQLBuildDropIndex(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-		Index: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
+	o := IndexCase()
+	n := ColumnCase()
 
 	sql, err := o.SQLBuilder(n)
 
@@ -394,7 +309,7 @@ func TestSQLBuildDropIndex(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != DROPINDEX {
@@ -404,28 +319,10 @@ func TestSQLBuildDropIndex(t *testing.T) {
 
 func TestSQLBuildAddAutoIncrement(t *testing.T) {
 
-	o := StateNew()
-	n := StateNew()
+	o := ColumnCase()
+	n := PKCase()
 
-	o.Table = []Table{Table{
-		Name: "test_table",
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-		PrimaryKey: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			AutoIncrementFlag: true,
-			Name:              "test_column",
-			Type:              "int",
-		}},
-	}}
+	n.Table[0].Column[0].AutoIncrementFlag = true
 
 	sql, err := o.SQLBuilder(n)
 
@@ -434,7 +331,7 @@ func TestSQLBuildAddAutoIncrement(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 2 {
-		t.Error("Should build 2 operation")
+		t.Fatal("Should build 2 operation")
 	}
 
 	if sql.Operations[0].OperationType != ADDPK {
@@ -447,35 +344,10 @@ func TestSQLBuildAddAutoIncrement(t *testing.T) {
 }
 
 func TestSQLBuildAddFK(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
+	o := FKCase()
+	n := FKCase()
 
-	o.Table = []Table{Table{
-		Name: "test_table",
-		PrimaryKey: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
-
-	n.Table = []Table{Table{
-		Name: "test_table",
-		PrimaryKey: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-			FK: ForeignKey{
-				Name:         "test2test",
-				TargetColumn: "test_column_parent",
-				TargetTable:  "test_table_parent",
-			},
-		}},
-	}}
+	o.Table[0].Column[0].FK = ForeignKey{}
 
 	sql, err := o.SQLBuilder(n)
 
@@ -484,7 +356,8 @@ func TestSQLBuildAddFK(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != ADDFK {
@@ -493,35 +366,10 @@ func TestSQLBuildAddFK(t *testing.T) {
 }
 
 func TestSQLBuildDropFK(t *testing.T) {
-	o := StateNew()
-	n := StateNew()
+	o := FKCase()
+	n := FKCase()
 
-	n.Table = []Table{Table{
-		Name: "test_table",
-		PrimaryKey: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-		}},
-	}}
-
-	o.Table = []Table{Table{
-		Name: "test_table",
-		PrimaryKey: Key{
-			Target: []string{"test_column"},
-		},
-		Column: []Column{Column{
-			Name: "test_column",
-			Type: "int",
-			FK: ForeignKey{
-				Name:         "test2test",
-				TargetColumn: "test_column_parent",
-				TargetTable:  "test_table_parent",
-			},
-		}},
-	}}
+	n.Table[0].Column[0].FK = ForeignKey{}
 
 	sql, err := o.SQLBuilder(n)
 
@@ -530,7 +378,7 @@ func TestSQLBuildDropFK(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		t.Error("Should build 1 operation")
+		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != DROPFK {

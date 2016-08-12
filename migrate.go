@@ -42,6 +42,7 @@ type ForeignKey struct {
 }
 
 type Column struct {
+	Id                string     `json:"id"`
 	BeforeName        string     `json:"before_name"`
 	Name              string     `json:"name"`
 	Type              string     `json:"type"`
@@ -84,7 +85,7 @@ func (op Operation) Strings() string {
 	case MODIFYAICLM:
 		return s + fmt.Sprintf("MODIFY COLUMN TO [%s]: [%s]\n", op.Table, op.Column.Name)
 	case CHANGECLM:
-		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table, op.Column.Name)
+		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table, op.Column.BeforeName, op.Column.Name)
 	case ADDPK:
 		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]: [%s]\n", op.Table, op.PK.Target)
 	case DROPPK:
@@ -94,6 +95,7 @@ func (op Operation) Strings() string {
 	case DROPINDEX:
 		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: [%s]\n", op.Table, op.Index.Target)
 	case ADDFK:
+		fmt.Printf("%+v", op)
 		return s + fmt.Sprintf("ADD FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table, op.Column.Name, op.FK.TargetColumn, op.FK.TargetTable)
 	case DROPFK:
 		return s + fmt.Sprintf("DROP FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table, op.Column.Name, op.FK.TargetColumn, op.FK.TargetTable)
@@ -119,27 +121,9 @@ func (s Sql) Check() {
 	}
 }
 
-func (s *State) ExistTable(st string) bool {
-	for _, v := range s.Table {
-		if v.Name == st {
-			return true
-		}
-	}
-	return false
-}
-
-func (t Table) ExistColumn(st string) bool {
-	for _, v := range t.Column {
-		if v.Name == st {
-			return true
-		}
-	}
-	return false
-}
-
 func (s *State) GetTable(st string) (Table, bool) {
 	for _, v := range s.Table {
-		if v.Name == st {
+		if v.Id == st {
 			return v, true
 		}
 	}
@@ -148,7 +132,7 @@ func (s *State) GetTable(st string) (Table, bool) {
 
 func (t Table) GetColumn(st string) (Column, bool) {
 	for _, v := range t.Column {
-		if v.Name == st {
+		if v.Id == st {
 			return v, true
 		}
 	}
@@ -166,12 +150,14 @@ func GetTableOperation(t Table, flag int) Operation {
 }
 
 func GetColumnOperation(t Table, c Column, flag int) Operation {
-	return Operation{
+	op := Operation{
 		Table:         t.Name,
 		BeforeTable:   t.BeforeName,
 		OperationType: flag,
 		Column:        c,
 	}
+	op.FK = c.FK
+	return op
 }
 
 func GetDropPaddingOperation(s string) Operation {
@@ -184,7 +170,11 @@ func GetDropPaddingOperation(s string) Operation {
 	}
 }
 
-func SameFlag(o, n Column) bool {
+func SameColumn(o, n Column) bool {
+
+	if o.Type != n.Type {
+		return false
+	}
 	if o.NotNullFlag != n.NotNullFlag {
 		return false
 	}
@@ -195,6 +185,10 @@ func SameFlag(o, n Column) bool {
 		return false
 	}
 	return true
+}
+
+func SQLBuilder(o, n *State) (*Sql, error) {
+	return nil, nil
 }
 
 func (o *State) SQLBuilder(n *State) (*Sql, error) {
@@ -218,134 +212,95 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 	// add and change table check
 	for _, tab := range n.Table {
-		if tab.BeforeName != "" {
-			ok := o.ExistTable(tab.BeforeName)
-			if ok != true {
-				return nil, errors.New("In changing table, before table not exist : " + tab.BeforeName)
-			}
-			op = GetTableOperation(tab, CHANGETBL)
-		} else {
-			ok := o.ExistTable(tab.Name)
-			if ok == true {
-				continue
-			}
+		oldtab, ok := o.GetTable(tab.Id)
+
+		if ok != true {
 			op = GetTableOperation(tab, ADDTBL)
-		}
-		sql.Operations = append(sql.Operations, op)
-	}
-
-	// delete table and delete column check
-	for _, old := range o.Table {
-
-		var b bool
-		var tab Table
-		for _, tab = range n.Table {
-			b = false
-			if old.Name == tab.Name || old.Name == tab.BeforeName {
-				b = true
-				break
-			}
-		}
-
-		// drop table
-		if b != true {
-			op = GetTableOperation(old, DROPTBL)
 			sql.Operations = append(sql.Operations, op)
 			continue
 		}
 
-		for _, oldcol := range old.Column {
-			b = false
-			for _, col := range tab.Column {
-				if oldcol.Name == col.Name || oldcol.Name == col.BeforeName {
-					b = true
-					break
-				}
-			}
+		if oldtab.Name != tab.Name {
+			tab.BeforeName = oldtab.Name
+			op = GetTableOperation(tab, CHANGETBL)
+			sql.Operations = append(sql.Operations, op)
+		}
+	}
+
+	// delete table and delete column check
+	for _, oldtab := range o.Table {
+
+		// drop table
+		tab, ok := n.GetTable(oldtab.Id)
+		if ok != true {
+			op = GetTableOperation(oldtab, DROPTBL)
+			sql.Operations = append(sql.Operations, op)
+			continue
+		}
+
+		for _, oldcol := range oldtab.Column {
+			_, ok := tab.GetColumn(oldcol.Id)
 
 			// drop column
-			if b != true {
+			if ok != true {
 				op = GetColumnOperation(tab, oldcol, DROPCLM)
 				sql.Operations = append(sql.Operations, op)
 			}
 		}
+
 	}
 
 	// add and change column check
 	for _, tab := range n.Table {
+		oldtab, _ := o.GetTable(tab.Id)
+
 		for _, col := range tab.Column {
-			var old Table
-			var ok bool
 
-			if tab.BeforeName != "" {
-				old, ok = o.GetTable(tab.BeforeName)
-				if ok != true {
-					return nil, ErrInvalidTable
-				}
-			} else {
-				// add and change column after creating new table
-				old, _ = o.GetTable(tab.Name)
-			}
-
-			var oldcol Column
-			if col.BeforeName != "" {
-				oldcol, ok = old.GetColumn(col.BeforeName)
-				if ok != true {
-					return nil, errors.New("Declared before column not exist in old state :" + col.BeforeName)
-				}
-				// append operation to change column data
-				op = GetColumnOperation(tab, col, CHANGECLM)
+			oldcol, ok := oldtab.GetColumn(col.Id)
+			if ok != true {
+				// append operation to add column
+				op = GetColumnOperation(tab, col, ADDCLM)
 				sql.Operations = append(sql.Operations, op)
-
+				continue
 			} else {
-				oldcol, ok = old.GetColumn(col.Name)
-				// append operation to add column data
-				if ok != true {
-					op = GetColumnOperation(tab, col, ADDCLM)
+				// append operation to change column data
+				if oldcol.Name != col.Name {
+					col.BeforeName = oldcol.Name
+					op = GetColumnOperation(tab, col, CHANGECLM)
 					sql.Operations = append(sql.Operations, op)
-					continue
 				}
 			}
+
 			// append operation to change column data
-			if SameFlag(oldcol, col) != true {
+			// auto increment need key setting, then skip AI config after key set
+			if SameColumn(oldcol, col) != true {
 				if oldcol.AutoIncrementFlag == true {
 					op = GetColumnOperation(tab, col, MODIFYAICLM)
+					sql.Operations = append(sql.Operations, op)
 				} else if oldcol.AutoIncrementFlag != col.AutoIncrementFlag {
 					continue
 				} else {
 					op = GetColumnOperation(tab, col, MODIFYCLM)
-
+					sql.Operations = append(sql.Operations, op)
 				}
-				sql.Operations = append(sql.Operations, op)
-				continue
 			}
 		}
 	}
 
 	// drop padding column in creating new table
-	for _, opr := range sql.Operations {
-		if opr.OperationType == ADDTBL {
-			op = GetDropPaddingOperation(opr.Table)
+	for _, ops := range sql.Operations {
+		if ops.OperationType == ADDTBL {
+			op = GetDropPaddingOperation(ops.Table)
 			sql.Operations = append(sql.Operations, op)
 		}
 	}
 
 	// add index and primary key and foreign key check
 	for _, tab := range n.Table {
-		var ok bool
-		var old Table
-		if tab.BeforeName != "" {
-			old, ok = o.GetTable(tab.BeforeName)
-			if ok != true {
-				return nil, errors.New("In changing table, before table not exist : " + tab.BeforeName)
-			}
-		} else {
-			// key adding is after creating table and column. then existance is not matter
-			old, _ = o.GetTable(tab.Name)
-		}
+		oldtab, _ := o.GetTable(tab.Id)
 
 		// add index
-		if old.Index.Target == nil && tab.Index.Target != nil {
+		if oldtab.Index.Target == nil && tab.Index.Target != nil {
 			op = GetTableOperation(tab, ADDINDEX)
 			sql.Operations = append(sql.Operations, op)
 
@@ -360,7 +315,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 		}
 
 		// add primary key
-		if old.PrimaryKey.Target == nil && tab.PrimaryKey.Target != nil {
+		if oldtab.PrimaryKey.Target == nil && tab.PrimaryKey.Target != nil {
 			op = GetTableOperation(tab, ADDPK)
 			sql.Operations = append(sql.Operations, op)
 
@@ -375,40 +330,32 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 		}
 
 		// drop index
-		if old.Index.Target != nil && tab.Index.Target == nil {
+		if oldtab.Index.Target != nil && tab.Index.Target == nil {
 			op = GetTableOperation(tab, DROPINDEX)
 			sql.Operations = append(sql.Operations, op)
 		}
 
 		// drop primary key
-		if old.PrimaryKey.Target != nil && tab.PrimaryKey.Target == nil {
+		if oldtab.PrimaryKey.Target != nil && tab.PrimaryKey.Target == nil {
 			op = GetTableOperation(tab, DROPPK)
 			sql.Operations = append(sql.Operations, op)
 		}
+	}
 
-		var oldcol Column
+	for _, tab := range n.Table {
+		oldtab, _ := o.GetTable(tab.Id)
 		for _, col := range tab.Column {
-			if col.BeforeName != "" {
-				oldcol, ok = old.GetColumn(col.BeforeName)
-				if ok != true {
-					return nil, errors.New("Declared before column not exist in old state :" + col.BeforeName)
-				}
-			} else {
-				oldcol, _ = old.GetColumn(col.Name)
-			}
+			oldcol, _ := oldtab.GetColumn(col.Id)
 
 			// add FK
-
 			if oldcol.FK.TargetColumn == "" && col.FK.TargetColumn != "" {
 				op = GetColumnOperation(tab, col, ADDFK)
-				op.FK = col.FK
 				sql.Operations = append(sql.Operations, op)
 			}
 
 			// drop FK
 			if oldcol.FK.TargetColumn != "" && col.FK.TargetColumn == "" {
 				op = GetColumnOperation(tab, oldcol, DROPFK)
-				op.FK = oldcol.FK
 				sql.Operations = append(sql.Operations, op)
 			}
 		}
@@ -468,8 +415,11 @@ func (c Operation) QueryBuilder() (string, error) {
 		return q, nil
 
 	case CHANGECLM:
-		q += fmt.Sprintf("CHANGE COLUMN %s %s", c.Column.BeforeName, c.Column.Name)
+		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.Column.BeforeName, c.Column.Name, c.Column.Type)
 
+		if c.Column.AutoIncrementFlag == true {
+			q += " AUTO_INCREMENT"
+		}
 		if c.Column.NotNullFlag == true {
 			q += " NOT NULL"
 		}
@@ -512,7 +462,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		return q, nil
 
 	case ADDFK:
-		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
+		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)", c.FK.Name, c.Column.Name, c.FK.TargetTable, c.FK.TargetColumn)
 		return q, nil
 
 	case DROPFK:

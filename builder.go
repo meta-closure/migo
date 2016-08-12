@@ -24,8 +24,9 @@ type Db struct {
 }
 
 type Table struct {
-	BeforeName string   `json:"before_name"`
-	Name       string   `json:"name"`
+	Id         string   `json:"id"`
+	BeforeName string `;son:"before_name"`
+	Name       string   `json:"table_name"`
 	PrimaryKey Key      `json:"primary_key"`
 	Index      Key      `json:"index"`
 	Column     []Column `json:"column"`
@@ -53,6 +54,30 @@ func ParseState(s string) (*State, error) {
 	}
 
 	return st, nil
+}
+
+func ParseSchemaYAML(h *hschema.HyperSchema, s string) error {
+	b, err := ioutil.ReadFile(s)
+	if err != nil {
+		return errors.Wrap(err, "YAML file open error")
+	}
+	y := &map[string]interface{}{}
+	err = yaml.Unmarshal(b, y)
+	if err != nil {
+		return errors.Wrap(err, "YAML file parse error")
+	}
+	h.Extract(*y)
+
+	return nil
+}
+
+func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
+	hs, err := hschema.ReadFile(s)
+	if err != nil {
+		return errors.Wrap(err, "JSON file parse error")
+	}
+	h = hs
+	return nil
 }
 
 func (db *Db) ParseSchema2Db(d *hschema.HyperSchema) error {
@@ -120,12 +145,6 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
 			c.Type = st
-		case "before_name":
-			st, ok := v.(string)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			c.BeforeName = st
 		case "unique":
 			b, ok := v.(bool)
 			if ok != true {
@@ -218,12 +237,6 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 
 			t.Index.Target = idx
 
-		case "before_name":
-			st, ok := v.(string)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			t.BeforeName = st
 		case "name":
 			st, ok := v.(string)
 			if ok != true {
@@ -238,7 +251,7 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 			continue
 		}
 
-		c := &Column{}
+		c := &Column{Id: k}
 		err := c.ParseSchema2Column(v, h)
 		if err != nil {
 			return errors.Wrapf(err, "Parse %s column error", k)
@@ -260,7 +273,7 @@ func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 		if v.Extras["table"] == nil {
 			continue
 		}
-		t := &Table{}
+		t := &Table{Id: k}
 		err = t.ParseSchema2Table(v, h)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Parsing %s table", k)

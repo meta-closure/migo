@@ -1,12 +1,10 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"migo"
 	"os"
 
-	"github.com/ghodss/yaml"
 	"github.com/lestrrat/go-jshschema"
 	"github.com/meta-closure/mig"
 	"github.com/pkg/errors"
@@ -55,16 +53,16 @@ func SetupCmd() *cli.App {
 	return app
 }
 
-func Parse(c *cli.Context, mode string) error {
+func Runner(c *cli.Context, mode string) error {
 
 	h := hschema.New()
 	if j := c.GlobalString("json"); j != "" {
-		err := ParseSchemaJSON(h, j)
+		err := migo.ParseSchemaJSON(h, j)
 		if err != nil {
 			return errors.Wrap(err, "Parse Schema error")
 		}
 	} else if y := c.GlobalString("yaml"); y != "" {
-		err := ParseSchemaYAML(h, y)
+		err := migo.ParseSchemaYAML(h, y)
 		if err != nil {
 			return errors.Wrap(err, "Parse Schema error")
 		}
@@ -113,7 +111,7 @@ func Parse(c *cli.Context, mode string) error {
 }
 
 func Run(c *cli.Context) error {
-	err := Parse(c, "run")
+	err := Runner(c, "run")
 	if err != nil {
 		return errors.Wrap(err, "RUN")
 	}
@@ -121,7 +119,7 @@ func Run(c *cli.Context) error {
 }
 
 func Plan(c *cli.Context) error {
-	err := Parse(c, "plan")
+	err := Runner(c, "plan")
 	if err != nil {
 		return errors.Wrap(err, "PLAN")
 	}
@@ -145,30 +143,6 @@ func _cmd() int {
 		return 1
 	}
 	return 0
-}
-
-func ParseSchemaYAML(h *hschema.HyperSchema, s string) error {
-	b, err := ioutil.ReadFile(s)
-	if err != nil {
-		return errors.Wrap(err, "YAML file open error")
-	}
-	y := &map[string]interface{}{}
-	err = yaml.Unmarshal(b, y)
-	if err != nil {
-		return errors.Wrap(err, "YAML file parse error")
-	}
-	h.Extract(*y)
-
-	return nil
-}
-
-func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
-	hs, err := hschema.ReadFile(s)
-	if err != nil {
-		return errors.Wrap(err, "JSON file parse error")
-	}
-	h = hs
-	return nil
 }
 
 func main() {
