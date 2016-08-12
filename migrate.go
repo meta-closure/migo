@@ -316,6 +316,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 		// add primary key
 		if oldtab.PrimaryKey.Target == nil && tab.PrimaryKey.Target != nil {
+
 			op = GetTableOperation(tab, ADDPK)
 			sql.Operations = append(sql.Operations, op)
 

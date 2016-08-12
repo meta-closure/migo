@@ -25,7 +25,7 @@ type Db struct {
 
 type Table struct {
 	Id         string   `json:"id"`
-	BeforeName string `;son:"before_name"`
+	BeforeName string   `;son:"before_name"`
 	Name       string   `json:"table_name"`
 	PrimaryKey Key      `json:"primary_key"`
 	Index      Key      `json:"index"`
@@ -134,16 +134,25 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 	for k, v := range col {
 		switch k {
 		case "name":
+
 			st, ok := v.(string)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
+			if st == "" {
+				return errors.Wrap(ErrEmpty, k)
+			}
+
 			c.Name = st
 		case "type":
 			st, ok := v.(string)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
+			if st == "" {
+				return errors.Wrap(ErrEmpty, k)
+			}
+
 			c.Type = st
 		case "unique":
 			b, ok := v.(bool)
@@ -205,6 +214,9 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 		switch k {
 		case "primary_key":
 			var pk []string
+			if v == nil {
+				return errors.Wrap(ErrEmpty, k)
+			}
 
 			is, ok := v.([]interface{})
 			if ok != true {
@@ -222,7 +234,9 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 
 		case "index":
 			var idx []string
-
+			if v == nil {
+				return errors.Wrap(ErrEmpty, k)
+			}
 			is, ok := v.([]interface{})
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
@@ -238,6 +252,9 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 			t.Index.Target = idx
 
 		case "name":
+			if v == nil {
+				return errors.Wrap(ErrEmpty, k)
+			}
 			st, ok := v.(string)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
