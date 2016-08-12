@@ -8,6 +8,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/lestrrat/go-jshschema"
+	"github.com/meta-closure/mig"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -76,12 +77,12 @@ func Parse(c *cli.Context, mode string) error {
 		return errors.New("State file is not speficied")
 	}
 
-	o, err := mig.ParseState(s)
+	o, err := migo.ParseState(s)
 	if err != nil {
 		return errors.Wrap(err, "State YAML file parse error")
 	}
 
-	n, err := mig.ParseSchema2State(h)
+	n, err := migo.ParseSchema2State(h)
 	if err != nil {
 		return errors.Wrap(err, "Parse HyperSchema to State failed")
 

@@ -1,4 +1,4 @@
-package mig
+package migo
 
 import (
 	"database/sql"
