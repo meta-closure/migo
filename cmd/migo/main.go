@@ -97,9 +97,15 @@ func Runner(c *cli.Context, mode string) error {
 		return nil
 	}
 
-	err = sql.Migrate()
+	i, err := sql.Migrate()
 	if err != nil {
-		return errors.Wrap(err, "Database migration error")
+		merr := errors.Wrap(err, "Database migration error")
+		err := sql.Recovery(i)
+		if err != nil {
+			return errors.Wrap(err, "Recovery error")
+		} else {
+			return merr
+		}
 	}
 
 	err = n.Update(s)

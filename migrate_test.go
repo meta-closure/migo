@@ -55,16 +55,33 @@ func IndexCase() *State {
 
 // test case state that have foreign key
 func FKCase() *State {
-	st := PKCase()
+	st := &State{}
+	st.Table = []Table{{
+		Id:   "test_fk_id1",
+		Name: "test_fk_name1",
+	}, {
+		Id:   "test_fk_id2",
+		Name: "test_fk_name2",
+	}}
 
-	st.Table[0].Column = []Column{Column{
-		Name: "test_column",
-		Id:   "test_column_id",
-		Type: "int",
+	st.Table[0].Column = []Column{{
+		Id:   "test_fk_column1",
+		Name: "test_fk_column_name1",
+	}, {
+		Id:   "test_fk_column2",
+		Name: "test_fk_column_name2",
+	}}
+
+	st.Table[1].Column = []Column{{
+		Id:   "test_fk_column1",
+		Name: "test_fk_column_name1",
+	}, {
+		Id:   "test_fk_column2",
+		Name: "test_fk_column_name2",
 		FK: ForeignKey{
 			Name:         "test2test",
-			TargetColumn: "test_column_parent",
-			TargetTable:  "test_table_parent",
+			TargetColumn: "test_fk_column1",
+			TargetTable:  "test_fk_id1",
 		},
 	}}
 
@@ -347,7 +364,7 @@ func TestSQLBuildAddFK(t *testing.T) {
 	o := FKCase()
 	n := FKCase()
 
-	o.Table[0].Column[0].FK = ForeignKey{}
+	o.Table[1].Column[1].FK = ForeignKey{}
 
 	sql, err := o.SQLBuilder(n)
 
@@ -356,7 +373,6 @@ func TestSQLBuildAddFK(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-
 		t.Fatal("Should build 1 operation")
 	}
 
@@ -369,7 +385,7 @@ func TestSQLBuildDropFK(t *testing.T) {
 	o := FKCase()
 	n := FKCase()
 
-	n.Table[0].Column[0].FK = ForeignKey{}
+	n.Table[1].Column[1].FK = ForeignKey{}
 
 	sql, err := o.SQLBuilder(n)
 

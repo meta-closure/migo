@@ -25,7 +25,6 @@ type Db struct {
 
 type Table struct {
 	Id         string   `json:"id"`
-	BeforeName string   `;son:"before_name"`
 	Name       string   `json:"table_name"`
 	PrimaryKey Key      `json:"primary_key"`
 	Index      Key      `json:"index"`
