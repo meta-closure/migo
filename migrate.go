@@ -431,7 +431,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		q = fmt.Sprintf("ALTER TABLE %s RENAME %s", c.OldTable.Name, c.Table.Name)
 		return q, nil
 	case DROPTBL:
-		q = fmt.Sprintf("DROP TABLE %S", c.Table.Name)
+		q = fmt.Sprintf("DROP TABLE %s", c.Table.Name)
 		return q, nil
 	case ADDCLM:
 		q += fmt.Sprintf("ADD COLUMN %s %s", c.Column.Name, c.Column.Type)
@@ -547,7 +547,7 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 		return q, nil
 
 	case DROPTBL:
-		q = fmt.Sprintf("CREATE TABLE %S (padding int)", c.Table.Name)
+		q = fmt.Sprintf("CREATE TABLE %s (padding int)", c.Table.Name)
 		return q, nil
 
 	case DROPCLM:
