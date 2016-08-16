@@ -97,6 +97,7 @@ func Runner(c *cli.Context, mode string) error {
 		return nil
 	}
 
+	// crash i th Query operation, then return err and i th number
 	i, err := sql.Migrate()
 	if err != nil {
 		merr := errors.Wrap(err, "Database migration error")

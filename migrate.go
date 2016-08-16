@@ -449,6 +449,9 @@ func (c Operation) QueryBuilder() (string, error) {
 
 	case MODIFYCLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.Column.Name, c.Column.Type)
+		if c.Column.AutoIncrementFlag == true && c.OldColumn.AutoIncrementFlag == true {
+			q += " AUTO_INCREMENT"
+		}
 		if c.Column.NotNullFlag == true {
 			q += " NOT NULL"
 		}
@@ -473,7 +476,7 @@ func (c Operation) QueryBuilder() (string, error) {
 	case CHANGECLM:
 		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.Column.BeforeName, c.Column.Name, c.Column.Type)
 
-		if c.Column.AutoIncrementFlag == true {
+		if c.Column.AutoIncrementFlag == true && c.OldColumn.AutoIncrementFlag == true {
 			q += " AUTO_INCREMENT"
 		}
 		if c.Column.NotNullFlag == true {
@@ -549,6 +552,9 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case DROPCLM:
 		q += fmt.Sprintf("ADD COLUMN %s %s", c.OldColumn.Name, c.OldColumn.Type)
+		if c.OldColumn.AutoIncrementFlag == true {
+			q += " AUTO_INCREMENT"
+		}
 		if c.OldColumn.NotNullFlag == true {
 			q += " NOT NULL"
 		}
@@ -563,6 +569,9 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case MODIFYCLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.OldColumn.Name, c.OldColumn.Type)
+		if c.OldColumn.AutoIncrementFlag == true {
+			q += " AUTO_INCREMENT"
+		}
 		if c.OldColumn.NotNullFlag == true {
 			q += " NOT NULL"
 		}

@@ -74,7 +74,10 @@ column:
         target_column: fk_column
         
 ```
+## Fail Revocery
 
+If migo failed a migrate operation, such that type converting error or irregular operation,
+then he attempt to recover before database states, quering reverse operation what migo done.    
 
 ## Rollback
 
