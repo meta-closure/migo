@@ -2,11 +2,10 @@ package main
 
 import (
 	"log"
-	"migo"
 	"os"
 
 	"github.com/lestrrat/go-jshschema"
-	"github.com/meta-closure/mig"
+	"github.com/meta-closure/migo"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -134,7 +133,7 @@ func Plan(c *cli.Context) error {
 }
 
 func StateInit(c *cli.Context) error {
-	n := mig.StateNew()
+	n := migo.StateNew()
 	err := n.Update("./database_state.yml")
 	if err != nil {
 		return errors.Wrap(err, "StateInit")
