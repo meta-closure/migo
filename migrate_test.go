@@ -1,9 +1,6 @@
 package migo
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 // test case state that have normal table setting
 func TableCase() *State {
@@ -272,7 +269,6 @@ func TestSQLBuildAddPK(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
-		fmt.Println(sql.Operations)
 		t.Fatal("Should build 1 operation")
 	}
 
