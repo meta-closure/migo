@@ -58,11 +58,11 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should exist test table")
 	}
 
-	if len(tbl.Index.Target) != 2 {
+	if len(tbl.Index[0].Target) != 2 {
 		t.Error("Should index size is 2")
 	}
 
-	if len(tbl.PrimaryKey.Target) != 2 {
+	if len(tbl.PrimaryKey[0].Target) != 2 {
 		t.Error("Should primary key size is 2")
 	}
 

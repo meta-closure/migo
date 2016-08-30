@@ -35,6 +35,7 @@ const (
 
 type Key struct {
 	Target []string
+	Name   string
 }
 
 type ForeignKey struct {
@@ -59,6 +60,7 @@ type Operation struct {
 	OldTable      Table
 	Column        Column
 	OldColumn     Column
+	Key           Key
 	OperationType int
 }
 
@@ -92,13 +94,13 @@ func (op Operation) Strings() string {
 	case CHANGECLM:
 		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table.Name, op.Column.BeforeName, op.Column.Name)
 	case ADDPK:
-		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]: [%s]\n", op.Table.Name, op.Table.PrimaryKey.Target)
+		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]; [%s] -> [%s]\n", op.Table.Name, op.Key.Name, op.Key.Target)
 	case DROPPK:
-		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s]\n", op.Table.Name, op.OldTable.PrimaryKey.Target)
+		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s] -> [%s]\n", op.Table.Name, op.Key.Name, op.Key.Target)
 	case ADDINDEX:
-		return s + fmt.Sprintf("ADD INDEX TO [%s]: [%s]\n", op.Table.Name, op.Table.Index.Target)
+		return s + fmt.Sprintf("ADD INDEX TO [%s]: [%s]\n", op.Key.Name, op.Key.Target)
 	case DROPINDEX:
-		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: [%s]\n", op.Table.Name, op.Table.Index.Target)
+		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: [%s]\n", op.Key.Name, op.Key.Target)
 	case ADDFK:
 		return s + fmt.Sprintf("ADD FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table.Name, op.Column.Name, op.Column.FK.TargetColumn, op.Column.FK.TargetTable)
 	case DROPFK:
@@ -138,28 +140,17 @@ func (t Table) GetColumn(st string) (Column, bool) {
 	return Column{}, false
 }
 
-func ConvertKeyId2Name(t Table) (Table, error) {
-	var pk []string
-	for i, key := range t.PrimaryKey.Target {
+func ConvertKeyId2Name(t Table, k Key) (Key, error) {
+	l := []string{}
+	for i, key := range k.Target {
 		col, ok := t.GetColumn(key)
 		if ok != true {
-			return t, errors.Wrap(ErrNotExistReference, t.PrimaryKey.Target[i])
+			return Key{}, errors.Wrap(ErrNotExistReference, k.Target[i])
 		}
-		pk = append(pk, col.Name)
+		l = append(l, col.Name)
 	}
 
-	var idx []string
-	for i, key := range t.Index.Target {
-		col, ok := t.GetColumn(key)
-		if ok != true {
-			return t, errors.Wrap(ErrNotExistReference, t.PrimaryKey.Target[i])
-		}
-		idx = append(idx, col.Name)
-	}
-
-	t.PrimaryKey.Target = pk
-	t.Index.Target = idx
-	return t, nil
+	return Key{Name: k.Name, Target: l}, nil
 }
 
 func (s *State) ConvertFKId2Name(col Column) (Column, error) {
@@ -177,6 +168,14 @@ func (s *State) ConvertFKId2Name(col Column) (Column, error) {
 	col.FK.TargetTable = stab.Name
 	col.FK.TargetColumn = scol.Name
 	return col, nil
+}
+
+func GetKeyOperation(oldtab, tab Table, key Key, flag int) Operation {
+	return Operation{
+		Table:         tab,
+		Key:           key,
+		OperationType: flag,
+	}
 }
 
 func GetTableOperation(oldtab, tab Table, flag int) Operation {
@@ -211,6 +210,26 @@ func GetDropPaddingOperation(tbl Table) Operation {
 			Type: "int",
 		},
 	}
+}
+
+func SameKey(m, n []string) bool {
+	for _, s := range m {
+		for _, t := range n {
+			if s != t {
+				return false
+			}
+		}
+	}
+
+	for _, t := range n {
+		for _, s := range m {
+			if s != t {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func SameColumn(o, n Column) bool {
@@ -334,57 +353,143 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 	for _, tab := range n.Table {
 		oldtab, _ := o.GetTable(tab.Id)
 
-		// change table id to table name
-		ctab, err := ConvertKeyId2Name(tab)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
-		}
+		for _, key := range tab.Index {
+			b := false
+			for _, oldkey := range oldtab.Index {
+				if oldkey.Name == key.Name {
+					b = true
+					// change key
+					// if key selection change, then drop old key and create new key
+					if SameKey(oldkey.Target, key.Target) != true {
+						// drop index key and auto_increment
+						conv, err := ConvertKeyId2Name(oldtab, oldkey)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+						}
+						op = GetKeyOperation(oldtab, tab, conv, DROPINDEX)
+						sql.Operations = append(sql.Operations, op)
 
-		coldtab, err := ConvertKeyId2Name(oldtab)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Converting old state [%s] table key id into name", oldtab.Name)
-		}
+						// add index key and auto_increment
+						conv, err = ConvertKeyId2Name(tab, key)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+						}
+						op = GetKeyOperation(oldtab, tab, conv, ADDINDEX)
+						sql.Operations = append(sql.Operations, op)
+					}
+				}
+			}
 
-		// add index
-		if oldtab.Index.Target == nil && tab.Index.Target != nil {
-			op = GetTableOperation(coldtab, ctab, ADDINDEX)
-			sql.Operations = append(sql.Operations, op)
-
-			// check column have auto_increment flag
-			for _, idx := range tab.Index.Target {
-				col, _ := tab.GetColumn(idx)
-				if col.AutoIncrementFlag == true {
-					op = GetColumnOperation(coldtab, ctab, Column{}, col, MODIFYAICLM)
-					sql.Operations = append(sql.Operations, op)
+			// add index
+			if b != true {
+				conv, err := ConvertKeyId2Name(tab, key)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+				}
+				op = GetKeyOperation(oldtab, tab, conv, ADDINDEX)
+				sql.Operations = append(sql.Operations, op)
+				for _, idx := range key.Target {
+					col, _ := tab.GetColumn(idx)
+					if col.AutoIncrementFlag == true {
+						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
+						sql.Operations = append(sql.Operations, op)
+					}
 				}
 			}
 		}
 
-		// add primary key
-		if oldtab.PrimaryKey.Target == nil && tab.PrimaryKey.Target != nil {
-			op = GetTableOperation(coldtab, ctab, ADDPK)
-			sql.Operations = append(sql.Operations, op)
+		for _, oldkey := range oldtab.Index {
+			b := false
+			for _, key := range tab.Index {
+				if oldkey.Name == key.Name {
+					b = true
+				}
+			}
+			// drop index and auto_increment
+			if b != true {
+				for _, idx := range oldkey.Target {
+					col, _ := oldtab.GetColumn(idx)
+					if col.AutoIncrementFlag == true {
+						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
+						sql.Operations = append(sql.Operations, op)
+					}
+				}
+				conv, err := ConvertKeyId2Name(oldtab, oldkey)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+				}
+				op = GetKeyOperation(oldtab, tab, conv, DROPINDEX)
+				sql.Operations = append(sql.Operations, op)
+			}
+		}
 
-			// check column have auto_increment flag
-			for _, pk := range tab.PrimaryKey.Target {
-				col, _ := tab.GetColumn(pk)
-				if col.AutoIncrementFlag == true {
-					op = GetColumnOperation(coldtab, ctab, Column{}, col, MODIFYAICLM)
-					sql.Operations = append(sql.Operations, op)
+		for _, key := range tab.PrimaryKey {
+			b := false
+			for _, oldkey := range oldtab.PrimaryKey {
+				if oldkey.Name == key.Name {
+					b = true
+					// if key selection change, then drop old key and create new key
+					if SameKey(oldkey.Target, key.Target) != true {
+						// drop PrimaryKey key and auto_increment
+						conv, err := ConvertKeyId2Name(oldtab, oldkey)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+						}
+						op = GetKeyOperation(oldtab, tab, conv, DROPFK)
+						sql.Operations = append(sql.Operations, op)
+
+						// add PrimaryKey key and auto_increment
+						conv, err = ConvertKeyId2Name(tab, key)
+						if err != nil {
+							return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+						}
+						op = GetKeyOperation(oldtab, tab, conv, ADDPK)
+						sql.Operations = append(sql.Operations, op)
+					}
+				}
+			}
+
+			// add PrimaryKey
+			if b != true {
+				conv, err := ConvertKeyId2Name(tab, key)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+				}
+				op = GetKeyOperation(oldtab, tab, conv, ADDPK)
+				sql.Operations = append(sql.Operations, op)
+				for _, idx := range key.Target {
+					col, _ := tab.GetColumn(idx)
+					if col.AutoIncrementFlag == true {
+						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
+						sql.Operations = append(sql.Operations, op)
+					}
 				}
 			}
 		}
 
-		// drop index
-		if oldtab.Index.Target != nil && tab.Index.Target == nil {
-			op = GetTableOperation(coldtab, ctab, DROPINDEX)
-			sql.Operations = append(sql.Operations, op)
-		}
-
-		// drop primary key
-		if oldtab.PrimaryKey.Target != nil && tab.PrimaryKey.Target == nil {
-			op = GetTableOperation(coldtab, ctab, DROPPK)
-			sql.Operations = append(sql.Operations, op)
+		for _, oldkey := range oldtab.PrimaryKey {
+			b := false
+			for _, key := range tab.PrimaryKey {
+				if oldkey.Name == key.Name {
+					b = true
+				}
+			}
+			// drop PrimaryKey and auto_increment
+			if b != true {
+				for _, idx := range oldkey.Target {
+					col, _ := oldtab.GetColumn(idx)
+					if col.AutoIncrementFlag == true {
+						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
+						sql.Operations = append(sql.Operations, op)
+					}
+				}
+				conv, err := ConvertKeyId2Name(oldtab, oldkey)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
+				}
+				op = GetKeyOperation(oldtab, tab, conv, DROPPK)
+				sql.Operations = append(sql.Operations, op)
+			}
 		}
 	}
 
@@ -489,35 +594,36 @@ func (c Operation) QueryBuilder() (string, error) {
 
 	case ADDPK:
 		pk := ""
-		if len(c.Table.PrimaryKey.Target) == 1 {
-			pk = c.Table.PrimaryKey.Target[0]
-		} else {
-			for _, i := range c.Table.PrimaryKey.Target {
-				pk += i + ","
+		for j, i := range c.Key.Target {
+			if j == 0 {
+				pk += i
+			} else {
+				pk += ", " + i
 			}
-			pk = pk[:len(pk)-1]
 		}
-		q += fmt.Sprintf("ADD PRIMARY KEY (%s)", pk)
+
+		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.Key.Name, pk)
 		return q, nil
 
 	case DROPPK:
-		q += "DROP PRIMARY KEY"
+		q += fmt.Sprintf("DROP PRIMARY KEY", c.Key.Name)
 		return q, nil
 
 	case ADDINDEX:
 		idx := ""
-		if len(c.Table.Index.Target) == 1 {
-			idx = c.Table.Index.Target[0]
-		} else {
-			for _, i := range c.Table.Index.Target {
-				idx += i + ","
+
+		for j, i := range c.Key.Target {
+			if j == 0 {
+				idx += i
+			} else {
+				idx += ", " + i
 			}
 		}
-		q += fmt.Sprintf("ADD INDEX (%s)", idx)
+		q += fmt.Sprintf("ADD INDEX %s (%s)", c.Key.Name, idx)
 		return q, nil
 
 	case DROPINDEX:
-		q += "DROP INDEX"
+		q += fmt.Sprintf("DROP INDEX %s", c.Key.Name)
 		return q, nil
 
 	case ADDFK:
@@ -606,35 +712,36 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case DROPPK:
 		pk := ""
-		if len(c.OldTable.PrimaryKey.Target) == 1 {
-			pk = c.OldTable.PrimaryKey.Target[0]
-		} else {
-			for _, i := range c.OldTable.PrimaryKey.Target {
-				pk += i + ","
+		for j, i := range c.Key.Target {
+			if j == 0 {
+				pk += i
+			} else {
+				pk += ", " + i
 			}
-			pk = pk[:len(pk)-1]
 		}
-		q += fmt.Sprintf("ADD PRIMARY KEY (%s)", pk)
+
+		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.Key.Name, pk)
 		return q, nil
 
 	case ADDPK:
-		q += "DROP PRIMARY KEY"
+		q += fmt.Sprintf("DROP PRIMARY KEY %s", c.Key.Name)
 		return q, nil
 
 	case DROPINDEX:
 		idx := ""
-		if len(c.OldTable.Index.Target) == 1 {
-			idx = c.OldTable.Index.Target[0]
-		} else {
-			for _, i := range c.OldTable.Index.Target {
-				idx += i + ","
+		for j, i := range c.Key.Target {
+			if j == 0 {
+				idx += i
+			} else {
+				idx += ", " + i
 			}
 		}
-		q += fmt.Sprintf("ADD INDEX (%s)", idx)
+
+		q += fmt.Sprintf("ADD INDEX %s (%s)", c.Key.Name, idx)
 		return q, nil
 
 	case ADDINDEX:
-		q += "DROP INDEX"
+		q += fmt.Sprintf("DROP INDEX %s", c.Key.Name)
 		return q, nil
 
 	case DROPFK:

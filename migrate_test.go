@@ -1,6 +1,9 @@
 package migo
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // test case state that have normal table setting
 func TableCase() *State {
@@ -35,8 +38,8 @@ func ColumnCase() *State {
 func PKCase() *State {
 	st := ColumnCase()
 
-	st.Table[0].PrimaryKey = Key{
-		Target: []string{"test_column_id"},
+	st.Table[0].PrimaryKey = []Key{
+		Key{Target: []string{"test_column_id"}, Name: "test_pk"},
 	}
 
 	return st
@@ -46,8 +49,8 @@ func PKCase() *State {
 func IndexCase() *State {
 	st := ColumnCase()
 
-	st.Table[0].Index = Key{
-		Target: []string{"test_column_id"},
+	st.Table[0].Index = []Key{
+		Key{Target: []string{"test_column_id"}, Name: "test_index"},
 	}
 
 	return st
@@ -269,6 +272,7 @@ func TestSQLBuildAddPK(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 1 {
+		fmt.Println(sql.Operations)
 		t.Fatal("Should build 1 operation")
 	}
 

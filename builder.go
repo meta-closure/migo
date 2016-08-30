@@ -26,8 +26,8 @@ type Db struct {
 type Table struct {
 	Id         string   `json:"id"`
 	Name       string   `json:"table_name"`
-	PrimaryKey Key      `json:"primary_key"`
-	Index      Key      `json:"index"`
+	PrimaryKey []Key    `json:"primary_key"`
+	Index      []Key    `json:"index"`
 	Column     []Column `json:"column"`
 }
 
@@ -212,43 +212,62 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 	for k, v := range table {
 		switch k {
 		case "primary_key":
-			var pk []string
 			if v == nil {
 				return errors.Wrap(ErrEmpty, k)
 			}
 
-			is, ok := v.([]interface{})
+			l, ok := v.(map[string]interface{})
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			for _, i := range is {
-				st, ok := i.(string)
+
+			ks := []Key{}
+			for name, keys := range l {
+				ps := []string{}
+
+				keylist, ok := keys.([]interface{})
 				if ok != true {
 					return errors.Wrap(ErrTypeInvalid, k)
 				}
-				pk = append(pk, st)
+				for _, key := range keylist {
+					p, ok := key.(string)
+					if ok != true {
+						return errors.Wrap(ErrTypeInvalid, k)
+					}
+					ps = append(ps, p)
+				}
+				ks = append(ks, Key{Name: name, Target: ps})
 			}
-
-			t.PrimaryKey.Target = pk
+			t.PrimaryKey = ks
 
 		case "index":
-			var idx []string
 			if v == nil {
 				return errors.Wrap(ErrEmpty, k)
 			}
-			is, ok := v.([]interface{})
+
+			l, ok := v.(map[string]interface{})
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			for _, i := range is {
-				st, ok := i.(string)
+
+			ks := []Key{}
+			for name, keys := range l {
+				ps := []string{}
+				keylist, ok := keys.([]interface{})
 				if ok != true {
 					return errors.Wrap(ErrTypeInvalid, k)
 				}
-				idx = append(idx, st)
-			}
 
-			t.Index.Target = idx
+				for _, key := range keylist {
+					p, ok := key.(string)
+					if ok != true {
+						return errors.Wrap(ErrTypeInvalid, k)
+					}
+					ps = append(ps, p)
+				}
+				ks = append(ks, Key{Name: name, Target: ps})
+			}
+			t.Index = ks
 
 		case "name":
 			if v == nil {

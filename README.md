@@ -50,11 +50,13 @@ primary key and index only specify key name.
 key:
     name: sample
     primary_key:
-        - pk1
-        - pk2
+        pk_name:
+            - pk1
+            - pk2
     index:
-        - index1
-        - index2
+        index_name:
+            - index1
+            - index2
 ```
 
 ### Column Configure Sample

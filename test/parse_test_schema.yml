@@ -11,17 +11,18 @@ definitions:
         title: test
         table:
             name: test
-            before_name: before_test
+
             primary_key: 
-                - test1
-                - test2
+                test_pk:
+                    - test1
+                    - test2
             index:
-                - test1
-                - test2
+                test_index:
+                    - test1
+                    - test2
         properties:
             test_column:
                 column:
-                    before_name: before_test
                     not_null: true
                     name: test_column
                     type: test_type
