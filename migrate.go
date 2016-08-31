@@ -164,7 +164,6 @@ func (s *State) ConvertFKId2Name(col Column) (Column, error) {
 		return col, errors.Wrapf(ErrNotExistReference, "%s Column not found", col.FK.TargetColumn)
 	}
 
-	col.FK.Name = col.Name
 	col.FK.TargetTable = stab.Name
 	col.FK.TargetColumn = scol.Name
 	return col, nil
@@ -606,7 +605,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		return q, nil
 
 	case DROPPK:
-		q += fmt.Sprintf("DROP PRIMARY KEY", c.Key.Name)
+		q += fmt.Sprintf("DROP PRIMARY KEY")
 		return q, nil
 
 	case ADDINDEX:
@@ -724,7 +723,7 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 		return q, nil
 
 	case ADDPK:
-		q += fmt.Sprintf("DROP PRIMARY KEY %s", c.Key.Name)
+		q += fmt.Sprintf("DROP PRIMARY KEY")
 		return q, nil
 
 	case DROPINDEX:
@@ -749,7 +748,7 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 		return q, nil
 
 	case ADDFK:
-		q += fmt.Sprintf("DROP FOREIGN KEY %s", c.OldColumn.FK.Name)
+		q += fmt.Sprintf("DROP FOREIGN KEY %s", c.Column.FK.Name)
 		return q, nil
 
 	default:
@@ -782,7 +781,6 @@ func (s *Sql) Recovery(i int) error {
 	for idx := 1; idx < i+1; idx++ {
 		_, err = db.Exec(qs[i-idx])
 		if err != nil {
-			fmt.Println(">>>>>>>> RECOVERY FAILED")
 			return errors.Wrapf(err, "Query: %s", qs[i-idx])
 		}
 	}

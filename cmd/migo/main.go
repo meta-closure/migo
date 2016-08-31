@@ -4,8 +4,9 @@ import (
 	"log"
 	"os"
 
+	"migo"
+
 	"github.com/lestrrat/go-jshschema"
-	"github.com/meta-closure/migo"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
