@@ -184,7 +184,7 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				return errors.Wrap(ErrEmpty, "foreign key's name")
 			}
 
-			if fk["target_table"] != nil {
+			if t := fk["target_table"]; t != nil {
 				tt, _ := fk["target_table"].(string)
 				c.FK.TargetTable = tt
 			} else {
@@ -308,10 +308,23 @@ func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 		if v.Extras["table"] == nil {
 			continue
 		}
-		t := &Table{Id: k}
+		t := &Table{Id: "#/definitions/" + k}
 		err = t.ParseSchema2Table(v, h)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Parsing %s table", k)
+			return nil, errors.Wrapf(err, "Parsing %s table", t.Id)
+
+		}
+		s.Table = append(s.Table, *t)
+	}
+
+	for k, v := range h.Properties {
+		if v.Extras["table"] == nil {
+			continue
+		}
+		t := &Table{Id: "#/properties/" + k}
+		err = t.ParseSchema2Table(v, h)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Parsing %s table", t.Id)
 
 		}
 		s.Table = append(s.Table, *t)
@@ -322,11 +335,11 @@ func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 			if l.Schema.Extras["table"] == nil {
 				continue
 			}
-
-			t := &Table{}
+			// links dont have JSON References, then use BasePath + href
+			t := &Table{Id: "#/links" + l.Href + "/Schema"}
 			err = t.ParseSchema2Table(l.Schema, h)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Parsing %s table", t.Name)
+				return nil, errors.Wrapf(err, "Parsing %s table", t.Id)
 
 			}
 			s.Table = append(s.Table, *t)
@@ -337,7 +350,7 @@ func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
 			if l.TargetSchema.Extras["table"] == nil {
 				continue
 			}
-			t := &Table{}
+			t := &Table{Id: "#/links" + l.Href + "/TargetSchema"}
 			err = t.ParseSchema2Table(l.TargetSchema, h)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Parsing %s table", t.Name)
