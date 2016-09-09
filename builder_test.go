@@ -33,7 +33,7 @@ func TestScm2State(t *testing.T) {
 
 	s, err := ParseSchema2State(hs)
 	if err != nil {
-		t.Errorf("Should pass parse Schema: %s", err)
+		t.Fatalf("Should pass parse Schema: %s", err)
 	}
 
 	if s.Db.User != "test_user" {
@@ -52,7 +52,7 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should exist test_addr address")
 	}
 
-	tbl, ok := s.GetTable("test_table")
+	tbl, ok := s.GetTable("#/definitions/test_table")
 
 	if ok != true {
 		t.Error("Should exist test table")
@@ -102,7 +102,7 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should fk target_column is fk_column")
 	}
 
-	if fk.TargetTable != "fk_table" {
+	if fk.TargetTable != "#/definitions/test_table" {
 		t.Error("Should fk target_table is fk_table")
 	}
 }

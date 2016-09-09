@@ -64,6 +64,8 @@ key:
 Read column tag and modify a column setting, set foreign key.
 If you want to use foreign key in using migo, you should set the foreign key name,
 to modify foreign key setting.
+if this table definitions is in definitions or properties, then target_table specification is
+JSON Referencens, in links, then it have extra format, "/link" + Href + (schema|target_schema) 
 
 ```yaml:
 
@@ -72,7 +74,7 @@ column:
     name: column_sample
     foreign_key:
         name: fk_identifier
-        target_table: fk_table
+        target_table: /link/base/schema
         target_column: fk_column
         
 ```
