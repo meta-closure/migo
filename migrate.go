@@ -94,13 +94,13 @@ func (op Operation) Strings() string {
 	case CHANGECLM:
 		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table.Name, op.Column.BeforeName, op.Column.Name)
 	case ADDPK:
-		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]; [%s] -> [%s]\n", op.Table.Name, op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]; [%s] -> %s\n", op.Table.Name, op.Key.Name, op.Key.Target)
 	case DROPPK:
-		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s] -> [%s]\n", op.Table.Name, op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s] -> %s\n", op.Table.Name, op.Key.Name, op.Key.Target)
 	case ADDINDEX:
-		return s + fmt.Sprintf("ADD INDEX TO [%s]: [%s]\n", op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("ADD INDEX TO [%s]: %s\n", op.Key.Name, op.Key.Target)
 	case DROPINDEX:
-		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: [%s]\n", op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: %s\n", op.Key.Name, op.Key.Target)
 	case ADDFK:
 		return s + fmt.Sprintf("ADD FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table.Name, op.Column.Name, op.Column.FK.TargetColumn, op.Column.FK.TargetTable)
 	case DROPFK:
@@ -212,19 +212,29 @@ func GetDropPaddingOperation(tbl Table) Operation {
 }
 
 func SameKey(m, n []string) bool {
+	var b bool
 	for _, s := range m {
+		b = false
 		for _, t := range n {
-			if s != t {
-				return false
+			if s == t {
+				b = true
 			}
+		}
+		if b == false {
+			return false
 		}
 	}
 
 	for _, t := range n {
+		b = false
 		for _, s := range m {
-			if s != t {
-				return false
+			if s == t {
+				b = true
 			}
+		}
+
+		if b == false {
+			return false
 		}
 	}
 
@@ -434,7 +444,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 						if err != nil {
 							return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
 						}
-						op = GetKeyOperation(oldtab, tab, conv, DROPFK)
+						op = GetKeyOperation(oldtab, tab, conv, DROPPK)
 						sql.Operations = append(sql.Operations, op)
 
 						// add PrimaryKey key and auto_increment
@@ -496,7 +506,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 		oldtab, _ := o.GetTable(tab.Id)
 		for _, col := range tab.Column {
 			oldcol, _ := oldtab.GetColumn(col.Id)
-
 			// add FK
 			if oldcol.FK.TargetColumn == "" && col.FK.TargetColumn != "" {
 				op = GetColumnOperation(oldtab, tab, oldcol, col, ADDFK)
