@@ -30,5 +30,5 @@ definitions:
                     unique: true
                     foreign_key:
                         name: fk_test
-                        target_table: fk_table
+                        target_table: '#/definitions/fk_table'
                         target_column: fk_column
