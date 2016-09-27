@@ -1,0 +1,32 @@
+hash: aec01534f3a15275c82ce788de3d495e678941fa467400e60f6bc32d7bc14f82
+updated: 2016-09-27T17:01:05.691989491+09:00
+imports:
+- name: github.com/cloudfoundry-incubator/candiedyaml
+  version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/ghodss/yaml
+  version: aa0c862057666179de291b67d9f093d12b5a8473
+- name: github.com/go-sql-driver/mysql
+  version: 0b58b37b664c21f3010e836f1b931e1d0b0b0685
+- name: github.com/lestrrat/go-jshschema
+  version: 4514acd168a63041862eb3d223a09a789cae6b3b
+- name: github.com/lestrrat/go-jspointer
+  version: f4881e611bdbe9fb413a7780721ef8400a1f2341
+- name: github.com/lestrrat/go-jsref
+  version: e452c7b5801d1c6494c9e7e0cbc7498c0f88dfd1
+  subpackages:
+  - provider
+- name: github.com/lestrrat/go-jsschema
+  version: b09d7650b822d2ea3dc83d5091a5e2acd8330051
+- name: github.com/lestrrat/go-pdebug
+  version: 2e6eaaa5717f81bda41d27070d3c966f40a1e75f
+- name: github.com/lestrrat/go-structinfo
+  version: f74c056fe41f860aa6264478c664a6fff8a64298
+- name: github.com/pkg/errors
+  version: a887431f7f6ef7687b556dbf718d9f351d4858a0
+- name: github.com/urfave/cli
+  version: d53eb991652b1d438abdd34ce4bfa3ef1539108e
+devImports: []

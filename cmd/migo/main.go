@@ -13,7 +13,7 @@ import (
 func SetupCmd() *cli.App {
 	app := cli.NewApp()
 
-	app.Name = "mig"
+	app.Name = "migo"
 	app.Usage = "database migrater from a JSON Schema file"
 
 	app.Flags = []cli.Flag{
