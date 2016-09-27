@@ -102,7 +102,7 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should fk target_column is fk_column")
 	}
 
-	if fk.TargetTable != "#/definitions/test_table" {
-		t.Error("Should fk target_table is fk_table")
+	if fk.TargetTable != "#/definitions/fk_table" {
+		t.Error("Should fk target_table is #/definitions/fk_table")
 	}
 }

@@ -1,0 +1,8 @@
+package: github.com/meta-closure/migo
+import:
+- package: github.com/ghodss/yaml
+- package: github.com/go-sql-driver/mysql
+- package: github.com/lestrrat/go-jshschema
+- package: github.com/lestrrat/go-jsschema
+- package: github.com/pkg/errors
+- package: github.com/urfave/cli
