@@ -9,6 +9,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ParseDbTestCase struct {
+	DbPath       string
+	Env          string
+	ExpectDbName string
+}
+
 func ParseSchema(h *hschema.HyperSchema, pt string) error {
 	b, err := ioutil.ReadFile(pt)
 	if err != nil {
@@ -23,6 +29,29 @@ func ParseSchema(h *hschema.HyperSchema, pt string) error {
 	return nil
 }
 
+func TestParseDb(t *testing.T) {
+	db := Db{}
+	tests := []ParseDbTestCase{{
+		DbPath:       "./test/database.yml",
+		Env:          "default",
+		ExpectDbName: "default",
+	}, {
+		DbPath:       "./test/database.yml",
+		Env:          "other",
+		ExpectDbName: "env",
+	}, {
+		DbPath:       "./test/database.yml",
+		Env:          "",
+		ExpectDbName: "default",
+	}}
+	for _, test := range tests {
+		db.ParseSchema2Db(test.DbPath, test.Env)
+		if db.DBName != test.ExpectDbName {
+			t.Errorf("Parse db config error: config: %+v, result: %+v", test, db)
+		}
+	}
+}
+
 func TestScm2State(t *testing.T) {
 	hs := hschema.New()
 
@@ -31,25 +60,9 @@ func TestScm2State(t *testing.T) {
 		t.Errorf("Test YAML Parse error: %s", err)
 	}
 
-	s, err := ParseSchema2State(hs)
+	s, err := ParseSchema2State(hs, "./test/database.yml", "default")
 	if err != nil {
 		t.Fatalf("Should pass parse Schema: %s", err)
-	}
-
-	if s.Db.User != "test_user" {
-		t.Error("Should exist test_user user")
-	}
-
-	if s.Db.DBName != "test_db" {
-		t.Error("Should exist test_db dbname")
-	}
-
-	if s.Db.Passwd != "test_pass" {
-		t.Error("Should exist test_pass password")
-	}
-
-	if s.Db.Addr != "test_addr" {
-		t.Error("Should exist test_addr address")
 	}
 
 	tbl, ok := s.GetTable("#/definitions/test_table")

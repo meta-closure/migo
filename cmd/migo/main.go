@@ -18,6 +18,14 @@ func SetupCmd() *cli.App {
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
+			Name:  "environment, e",
+			Usage: "Set environment to migrate",
+		},
+		cli.StringFlag{
+			Name:  "database, d",
+			Usage: "Load configuration from YAML format file. default database.yml",
+		},
+		cli.StringFlag{
 			Name:  "json, j",
 			Usage: "Load configuration from `Schema` JSON format file.",
 		},
@@ -79,10 +87,10 @@ func Runner(c *cli.Context, mode string) error {
 		return errors.Wrap(err, "State YAML file parse error")
 	}
 
-	n, err := migo.ParseSchema2State(h)
+	db, env := c.GlobalString("database"), c.GlobalString("environment")
+	n, err := migo.ParseSchema2State(h, db, env)
 	if err != nil {
 		return errors.Wrap(err, "Parse HyperSchema to State failed")
-
 	}
 
 	sql, err := o.SQLBuilder(n)
