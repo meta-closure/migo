@@ -79,12 +79,20 @@ func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
 	return nil
 }
 
-func (db *Db) ParseSchema2Db(d *hschema.HyperSchema) error {
-	if d.Extras["db"] == nil {
-		return ErrEmpty
+func (db *Db) ParseSchema2Db(dbpath, env string) error {
+	b, err := ioutil.ReadFile(dbpath)
+	if err != nil {
+		return errors.Wrap(err, "YAML file open error")
 	}
-
-	conn := d.Extras["db"].(map[string]interface{})
+	y := &map[string]interface{}{}
+	err = yaml.Unmarshal(b, y)
+	if err != nil {
+		return errors.Wrap(err, "YAML file parse error")
+	}
+	if env == "" {
+		env = "default"
+	}
+	conn := (*y)[env].(map[string]interface{})
 	for k, v := range conn {
 		switch k {
 		case "user":
@@ -298,9 +306,12 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 	return nil
 }
 
-func ParseSchema2State(h *hschema.HyperSchema) (*State, error) {
+func ParseSchema2State(h *hschema.HyperSchema, db, env string) (*State, error) {
 	s := StateNew()
-	err := s.Db.ParseSchema2Db(h)
+	if db == "" {
+		db = "./database.yml"
+	}
+	err := s.Db.ParseSchema2Db(db, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "Parsing Db parameter: ")
 	}

@@ -12,30 +12,46 @@ go get -u github.com/meta-closure/migo/cmd/migo
 Read a (extended) JSON Schema file and migrate database table status.
 
 ```sh:
-migo -y /path/to/schema.yml -s /path/to/internal.yml run
+migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e environment run
 ```
 
 Before migrate, you might check a operation what migo do,
 Plan command enable to see operation list
 
 ```sh;
-migo -y /path/to/schema.yml -s /path/to/internal.yml plan
+migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e environment plan
 ```
 
 ## Sample Schema Description
 
 ### Database configure Sample
 
-Read db tag and create DSN(Data Source Name) to connect your database.
+If specify some database config file, such that 
 
 ```yaml:
-db:
+default:
     user: sample user
     passwd: passwd
     addr: host:port
     dbname: db
 
+production:
+    user: hoge
+    passwd: hoge
+    addr: host:port
+    dbname: db
+
+master:
+    user: foo
+    passwd: foo
+    addr: host:port
+    dbname: db
+
 ```
+
+then migo read configure that you specify environment. if empty then migo read
+"default" environment.
+Read db tag and create DSN(Data Source Name) to connect your database.
 
 ### Table Configure Sample
 
