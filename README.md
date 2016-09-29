@@ -95,6 +95,15 @@ column:
         
 ```
 
+## How to Init to use migo 
+
+migo have init command that create initial state file and 
+want to create database if not exist,
+
+```sh:
+migo -d database.yml -e develop init
+```
+
 ## Seeding
 
 migo have seed command that enable you to insert initial seed record.
