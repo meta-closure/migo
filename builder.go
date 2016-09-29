@@ -86,7 +86,7 @@ func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
 	return nil
 }
 
-func ParseSchema2Db(dbpath, env string) (*Db, error) {
+func NewDb(dbpath, env string) (*Db, error) {
 	conf := &Db{}
 	y, err := ParseYAML(dbpath)
 	if err != nil {
@@ -305,7 +305,7 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 
 func ParseSchema2State(h *hschema.HyperSchema, db, env string) (*State, error) {
 	s := StateNew()
-	conf, err := ParseSchema2Db(db, env)
+	conf, err := NewDb(db, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "Parsing Db parameter: ")
 	}
@@ -366,18 +366,4 @@ func ParseSchema2State(h *hschema.HyperSchema, db, env string) (*State, error) {
 		}
 	}
 	return s, err
-}
-
-func (s *State) Update(path string) error {
-	b, err := yaml.Marshal(s)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(path, b, 0777)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

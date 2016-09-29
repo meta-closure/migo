@@ -8,7 +8,7 @@ import (
 )
 
 func Seed(path, dbpath, env string) error {
-	dbconf, err := ParseSchema2Db(dbpath, env)
+	dbconf, err := NewDb(dbpath, env)
 	if err != nil {
 		return errors.Wrap(err, "Parse db configue")
 	}

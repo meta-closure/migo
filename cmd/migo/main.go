@@ -59,8 +59,8 @@ func SetupCmd() *cli.App {
 		},
 		{
 			Name:   "init",
-			Usage:  "create initial state file",
-			Action: StateInit,
+			Usage:  "create initial state file and create database if not exist",
+			Action: Init,
 		}, {
 			Name:   "seed",
 			Usage:  "insert seed record",
@@ -142,6 +142,18 @@ func seed(c *cli.Context) error {
 	return nil
 }
 
+func initMigo(c *cli.Context) error {
+	if err := migo.StateInit(); err != nil {
+		return errors.Wrap(err, "State init")
+	}
+
+	db, env := c.GlobalString("database"), c.GlobalString("environment")
+	if err := migo.DbInit(db, env); err != nil {
+		return errors.Wrap(err, "Database create")
+	}
+	return nil
+}
+
 func Run(c *cli.Context) error {
 	err := runner(c, "run")
 	if err != nil {
@@ -166,11 +178,10 @@ func Seed(c *cli.Context) error {
 	return nil
 }
 
-func StateInit(c *cli.Context) error {
-	n := migo.StateNew()
-	err := n.Update("./database_state.yml")
+func Init(c *cli.Context) error {
+	err := initMigo(c)
 	if err != nil {
-		return errors.Wrap(err, "StateInit")
+		return errors.Wrap(err, "INIT")
 	}
 	return nil
 }

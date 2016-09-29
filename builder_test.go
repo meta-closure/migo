@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ParseDbTestCase struct {
+type NewDbTestCase struct {
 	DbPath       string
 	Env          string
 	ExpectDbName string
@@ -29,8 +29,8 @@ func ParseSchema(h *hschema.HyperSchema, pt string) error {
 	return nil
 }
 
-func TestParseDb(t *testing.T) {
-	tests := []ParseDbTestCase{{
+func TestNewDb(t *testing.T) {
+	tests := []NewDbTestCase{{
 		DbPath:       "./test/database.yml",
 		Env:          "default",
 		ExpectDbName: "default",
@@ -40,7 +40,7 @@ func TestParseDb(t *testing.T) {
 		ExpectDbName: "env",
 	}}
 	for _, test := range tests {
-		db, err := ParseSchema2Db(test.DbPath, test.Env)
+		db, err := NewDb(test.DbPath, test.Env)
 		if err != nil {
 			t.Error(err)
 		}
