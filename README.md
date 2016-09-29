@@ -98,7 +98,7 @@ column:
 ## How to Init to use migo 
 
 migo have init command that create initial state file and 
-want to create database if not exist,
+create database if not exist,
 
 ```sh:
 migo -d database.yml -e develop init
