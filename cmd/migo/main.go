@@ -18,14 +18,19 @@ func SetupCmd() *cli.App {
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
+			Name:  "seed, S",
+			Value: "seed.yml",
+			Usage: "`Seeding` YAML file path",
+		},
+		cli.StringFlag{
 			Name:  "environment, e",
 			Value: "default",
-			Usage: "Set environment to migrate",
+			Usage: "Set `environment` to migrate",
 		},
 		cli.StringFlag{
 			Name:  "database, d",
 			Value: "./database.yml",
-			Usage: "Load configuration from YAML format file. default database.yml",
+			Usage: "Load `database` configuration from YAMLformat file. default database.yml",
 		},
 		cli.StringFlag{
 			Name:  "json, j",
@@ -66,7 +71,7 @@ func SetupCmd() *cli.App {
 	return app
 }
 
-func Runner(c *cli.Context, mode string) error {
+func runner(c *cli.Context, mode string) error {
 	h := hschema.New()
 	if j := c.GlobalString("json"); j != "" {
 		err := migo.ParseSchemaJSON(h, j)
@@ -109,7 +114,7 @@ func Runner(c *cli.Context, mode string) error {
 		return nil
 	}
 
-	// crash i th Query operation, then return err and i th number
+	// if crash i th Query operation, then return err and i th number
 	i, err := sql.Migrate()
 	if err != nil {
 		merr := errors.Wrap(err, "Database migration error")
@@ -129,8 +134,16 @@ func Runner(c *cli.Context, mode string) error {
 	return nil
 }
 
+func seed(c *cli.Context) error {
+	s, db, env := c.GlobalString("seed"), c.GlobalString("database"), c.GlobalString("environment")
+	if err := migo.Seed(s, db, env); err != nil {
+		return errors.Wrap(err, "Failed to seeding")
+	}
+	return nil
+}
+
 func Run(c *cli.Context) error {
-	err := Runner(c, "run")
+	err := runner(c, "run")
 	if err != nil {
 		return errors.Wrap(err, "RUN")
 	}
@@ -138,7 +151,7 @@ func Run(c *cli.Context) error {
 }
 
 func Plan(c *cli.Context) error {
-	err := Runner(c, "plan")
+	err := runner(c, "plan")
 	if err != nil {
 		return errors.Wrap(err, "PLAN")
 	}
@@ -146,7 +159,7 @@ func Plan(c *cli.Context) error {
 }
 
 func Seed(c *cli.Context) error {
-	err := migo.Seed()
+	err := seed(c)
 	if err != nil {
 		return errors.Wrap(err, "SEED")
 	}

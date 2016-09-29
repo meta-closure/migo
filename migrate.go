@@ -253,18 +253,22 @@ func SameColumn(o, n Column) bool {
 	return true
 }
 
+func NewSql(db Db) *Sql {
+	return &Sql{
+		DbConf: mysql.Config{
+			User:   db.User,
+			Addr:   db.Addr,
+			Net:    "tcp",
+			Passwd: db.Passwd,
+			DBName: db.DBName,
+		},
+	}
+}
+
 func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 	// Setting database connection configure
-	sql := &Sql{
-		DbConf: mysql.Config{
-			User:   n.Db.User,
-			Addr:   n.Db.Addr,
-			Net:    "tcp",
-			Passwd: n.Db.Passwd,
-			DBName: n.Db.DBName,
-		},
-	}
+	sql := NewSql(n.Db)
 	// if given db connection data are odd, not lock old state
 	if o.Db.Addr != o.Db.Addr {
 		o = StateNew()

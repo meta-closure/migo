@@ -56,18 +56,25 @@ func ParseState(s string) (*State, error) {
 }
 
 func ParseSchemaYAML(h *hschema.HyperSchema, s string) error {
+	y, err := ParseYAML(s)
+	if err != nil {
+		return err
+	}
+	h.Extract(y)
+	return nil
+}
+
+func ParseYAML(s string) (map[string]interface{}, error) {
+	y := &map[string]interface{}{}
 	b, err := ioutil.ReadFile(s)
 	if err != nil {
-		return errors.Wrap(err, "YAML file open error")
+		return *y, errors.Wrap(err, "YAML file open error")
 	}
-	y := &map[string]interface{}{}
 	err = yaml.Unmarshal(b, y)
 	if err != nil {
-		return errors.Wrap(err, "YAML file parse error")
+		return *y, errors.Wrap(err, "YAML file parse error")
 	}
-	h.Extract(*y)
-
-	return nil
+	return *y, nil
 }
 
 func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
@@ -81,20 +88,14 @@ func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
 
 func ParseSchema2Db(dbpath, env string) (*Db, error) {
 	conf := &Db{}
-	b, err := ioutil.ReadFile(dbpath)
+	y, err := ParseYAML(dbpath)
 	if err != nil {
-		return conf, errors.Wrap(err, "YAML file open error")
+		return conf, errors.New("Parse YAML")
 	}
-	y := &map[string]interface{}{}
-	err = yaml.Unmarshal(b, y)
-	if err != nil {
-		return conf, errors.Wrap(err, "YAML file parse error")
-	}
-
-	if (*y)[env] == nil {
+	if y[env] == nil {
 		return conf, errors.New("Env not exist in db config")
 	}
-	conn := (*y)[env].(map[string]interface{})
+	conn := y[env].(map[string]interface{})
 	for k, v := range conn {
 		switch k {
 		case "user":

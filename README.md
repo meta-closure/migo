@@ -94,6 +94,30 @@ column:
         target_column: fk_column
         
 ```
+
+## Seeding
+
+migo have seed command that enable you to insert initial seed record.
+for sample description.
+
+```yaml:
+
+# table
+foo_table:
+      # column
+    - bar: 1
+      hoge: hoge
+    - other: 111
+      hoge: hogehoge
+
+# other table
+bar:
+    - hoge: hogehoge
+
+```
+
+then migo convert all data into SQL and insert to DB.
+
 ## Fail Revocery
 
 If migo failed a migrate operation, such that type converting error or irregular operation,
