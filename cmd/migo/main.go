@@ -19,10 +19,12 @@ func SetupCmd() *cli.App {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "environment, e",
+			Value: "default",
 			Usage: "Set environment to migrate",
 		},
 		cli.StringFlag{
 			Name:  "database, d",
+			Value: "./database.yml",
 			Usage: "Load configuration from YAML format file. default database.yml",
 		},
 		cli.StringFlag{
@@ -54,6 +56,10 @@ func SetupCmd() *cli.App {
 			Name:   "init",
 			Usage:  "create initial state file",
 			Action: StateInit,
+		}, {
+			Name:   "seed",
+			Usage:  "insert seed record",
+			Action: Seed,
 		},
 	}
 
@@ -61,7 +67,6 @@ func SetupCmd() *cli.App {
 }
 
 func Runner(c *cli.Context, mode string) error {
-
 	h := hschema.New()
 	if j := c.GlobalString("json"); j != "" {
 		err := migo.ParseSchemaJSON(h, j)
@@ -136,6 +141,14 @@ func Plan(c *cli.Context) error {
 	err := Runner(c, "plan")
 	if err != nil {
 		return errors.Wrap(err, "PLAN")
+	}
+	return nil
+}
+
+func Seed(c *cli.Context) error {
+	err := migo.Seed()
+	if err != nil {
+		return errors.Wrap(err, "SEED")
 	}
 	return nil
 }
