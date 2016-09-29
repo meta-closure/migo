@@ -79,18 +79,20 @@ func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
 	return nil
 }
 
-func (db *Db) ParseSchema2Db(dbpath, env string) error {
+func ParseSchema2Db(dbpath, env string) (*Db, error) {
+	conf := &Db{}
 	b, err := ioutil.ReadFile(dbpath)
 	if err != nil {
-		return errors.Wrap(err, "YAML file open error")
+		return conf, errors.Wrap(err, "YAML file open error")
 	}
 	y := &map[string]interface{}{}
 	err = yaml.Unmarshal(b, y)
 	if err != nil {
-		return errors.Wrap(err, "YAML file parse error")
+		return conf, errors.Wrap(err, "YAML file parse error")
 	}
-	if env == "" {
-		env = "default"
+
+	if (*y)[env] == nil {
+		return conf, errors.New("Env not exist in db config")
 	}
 	conn := (*y)[env].(map[string]interface{})
 	for k, v := range conn {
@@ -98,38 +100,32 @@ func (db *Db) ParseSchema2Db(dbpath, env string) error {
 		case "user":
 			st, ok := v.(string)
 			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
+				return conf, errors.Wrap(ErrTypeInvalid, k)
 			}
-			db.User = st
-
+			conf.User = st
 		case "passwd":
-			if v == nil {
-				continue
-			}
 			st, ok := v.(string)
 			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
+				return conf, errors.Wrap(ErrTypeInvalid, k)
 			}
-			db.Passwd = st
-
+			conf.Passwd = st
 		case "addr":
 			st, ok := v.(string)
 			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
+				return conf, errors.Wrap(ErrTypeInvalid, k)
 			}
-			db.Addr = st
-
+			conf.Addr = st
 		case "dbname":
 			st, ok := v.(string)
 			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
+				return conf, errors.Wrap(ErrTypeInvalid, k)
 			}
-			db.DBName = st
+			conf.DBName = st
 		default:
 			continue
 		}
 	}
-	return nil
+	return conf, nil
 }
 
 func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) error {
@@ -308,13 +304,11 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 
 func ParseSchema2State(h *hschema.HyperSchema, db, env string) (*State, error) {
 	s := StateNew()
-	if db == "" {
-		db = "./database.yml"
-	}
-	err := s.Db.ParseSchema2Db(db, env)
+	conf, err := ParseSchema2Db(db, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "Parsing Db parameter: ")
 	}
+	s.Db = *conf
 	for k, v := range h.Definitions {
 		if v.Extras["table"] == nil {
 			continue

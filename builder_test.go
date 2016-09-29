@@ -30,7 +30,6 @@ func ParseSchema(h *hschema.HyperSchema, pt string) error {
 }
 
 func TestParseDb(t *testing.T) {
-	db := Db{}
 	tests := []ParseDbTestCase{{
 		DbPath:       "./test/database.yml",
 		Env:          "default",
@@ -39,13 +38,12 @@ func TestParseDb(t *testing.T) {
 		DbPath:       "./test/database.yml",
 		Env:          "other",
 		ExpectDbName: "env",
-	}, {
-		DbPath:       "./test/database.yml",
-		Env:          "",
-		ExpectDbName: "default",
 	}}
 	for _, test := range tests {
-		db.ParseSchema2Db(test.DbPath, test.Env)
+		db, err := ParseSchema2Db(test.DbPath, test.Env)
+		if err != nil {
+			t.Error(err)
+		}
 		if db.DBName != test.ExpectDbName {
 			t.Errorf("Parse db config error: config: %+v, result: %+v", test, db)
 		}

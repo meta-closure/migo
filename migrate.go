@@ -92,7 +92,7 @@ func (op Operation) Strings() string {
 	case MODIFYAICLM:
 		return s + fmt.Sprintf("MODIFY COLUMN TO CHANGE AUTO INCREMENT [%s]: [%s]\n", op.Table.Name, op.Column.Name)
 	case CHANGECLM:
-		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table.Name, op.Column.BeforeName, op.Column.Name)
+		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table.Name, op.OldColumn.Name, op.Column.Name)
 	case ADDPK:
 		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]; [%s] -> %s\n", op.Table.Name, op.Key.Name, op.Key.Target)
 	case DROPPK:
@@ -224,7 +224,6 @@ func SameKey(m, n []string) bool {
 			return false
 		}
 	}
-
 	for _, t := range n {
 		b = false
 		for _, s := range m {
@@ -232,12 +231,10 @@ func SameKey(m, n []string) bool {
 				b = true
 			}
 		}
-
 		if b == false {
 			return false
 		}
 	}
-
 	return true
 }
 
@@ -317,9 +314,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 	// add and change column check
 	for _, tab := range n.Table {
 		oldtab, _ := o.GetTable(tab.Id)
-
 		for _, col := range tab.Column {
-
 			oldcol, ok := oldtab.GetColumn(col.Id)
 			if ok != true {
 				// append operation to add column
@@ -397,13 +392,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 				}
 				op = GetKeyOperation(oldtab, tab, conv, ADDINDEX)
 				sql.Operations = append(sql.Operations, op)
-				for _, idx := range key.Target {
-					col, _ := tab.GetColumn(idx)
-					if col.AutoIncrementFlag == true {
-						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
-						sql.Operations = append(sql.Operations, op)
-					}
-				}
 			}
 		}
 
@@ -416,13 +404,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			}
 			// drop index and auto_increment
 			if b != true {
-				for _, idx := range oldkey.Target {
-					col, _ := oldtab.GetColumn(idx)
-					if col.AutoIncrementFlag == true {
-						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
-						sql.Operations = append(sql.Operations, op)
-					}
-				}
 				conv, err := ConvertKeyId2Name(oldtab, oldkey)
 				if err != nil {
 					return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
@@ -587,7 +568,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		return q, nil
 
 	case CHANGECLM:
-		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.Column.BeforeName, c.Column.Name, c.Column.Type)
+		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.OldColumn.Name, c.Column.Name, c.Column.Type)
 
 		if c.Column.AutoIncrementFlag == true && c.OldColumn.AutoIncrementFlag == true {
 			q += " AUTO_INCREMENT"
