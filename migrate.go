@@ -270,7 +270,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 	// Setting database connection configure
 	sql := NewSql(n.Db)
 	// if given db connection data are odd, not lock old state
-	if o.Db.Addr != o.Db.Addr {
+	if o.Db.Addr != n.Db.Addr {
 		o = StateNew()
 	}
 
