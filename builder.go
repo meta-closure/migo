@@ -11,9 +11,9 @@ import (
 )
 
 type State struct {
-	Db       Db        `json:"db"`
-	Table    []Table   `json:"table"`
-	UpdateAt time.Time `json:"updated_at"`
+	Db       Db
+	Table    []Table
+	UpdateAt time.Time
 }
 
 type Db struct {
@@ -24,11 +24,11 @@ type Db struct {
 }
 
 type Table struct {
-	Id         string   `json:"id"`
-	Name       string   `json:"table_name"`
-	PrimaryKey []Key    `json:"primary_key"`
-	Index      []Key    `json:"index"`
-	Column     []Column `json:"column"`
+	Id         string
+	Name       string
+	PrimaryKey []Key
+	Index      []Key
+	Column     []Column
 }
 
 func StateNew() *State {
