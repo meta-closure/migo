@@ -39,20 +39,20 @@ type Key struct {
 }
 
 type ForeignKey struct {
-	Name         string `json:"name"`
-	TargetTable  string `json:"target_table"`
-	TargetColumn string `json:"target_column"`
+	Name         string
+	TargetTable  string
+	TargetColumn string
 }
 
 type Column struct {
-	Id                string     `json:"id"`
-	BeforeName        string     `json:"before_name"`
-	Name              string     `json:"name"`
-	Type              string     `json:"type"`
-	FK                ForeignKey `json:"foreign_key"`
-	UniqueFlag        bool       `json:"unique"`
-	AutoIncrementFlag bool       `json:"auto_increment"`
-	NotNullFlag       bool       `json:"not_null"`
+	Id                string
+	BeforeName        string
+	Name              string
+	Type              string
+	FK                ForeignKey
+	UniqueFlag        bool
+	AutoIncrementFlag bool
+	NotNullFlag       bool
 }
 
 type Operation struct {
@@ -269,11 +269,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 	// Setting database connection configure
 	sql := NewSql(n.Db)
-	// if given db connection data are odd, not lock old state
-	if o.Db.Addr != n.Db.Addr {
-		o = StateNew()
-	}
-
 	var op Operation
 
 	// add and change table check
@@ -287,6 +282,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 		}
 
 		if oldtab.Name != tab.Name {
+			fmt.Println(tab.Id, tab.Name)
 			op = GetTableOperation(oldtab, tab, CHANGETBL)
 			sql.Operations = append(sql.Operations, op)
 		}
