@@ -25,6 +25,7 @@ func Seed(path, dbpath, env string) error {
 	}
 
 	qs := []string{}
+	qs = append(qs, "SET FOREIGN_KEY_CHECKS = 0")
 	for table, data := range y {
 		datalist, ok := data.([]interface{})
 		if !ok {
@@ -38,6 +39,7 @@ func Seed(path, dbpath, env string) error {
 			qs = append(qs, q)
 		}
 	}
+	qs = append(qs, "SET FOREIGN_KEY_CHECKS = 1")
 
 	for _, q := range qs {
 		_, err := db.Exec(q)
