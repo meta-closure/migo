@@ -11,7 +11,7 @@ import (
 	"github.com/lestrrat/go-test-mysqld"
 )
 
-func TestSeedWithForeingKey(t *testing.T) {
+func TestSeedWithForeignKey(t *testing.T) {
 	conf := mysqltest.NewConfig()
 	conf.SkipNetworking = false
 	conf.Port = 13306
