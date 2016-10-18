@@ -135,3 +135,15 @@ then he attempt to recover before database states, quering reverse operation wha
 ## Rollback
 
 If you might to Rollback. you just run specify a previous JSON Schema file or State file.
+
+## Test
+
+```
+go test -v .
+```
+
+or
+
+```
+./bin/test
+```
