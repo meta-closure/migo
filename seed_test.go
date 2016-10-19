@@ -2,99 +2,96 @@ package migo
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
 	"os/exec"
 	"testing"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/lestrrat/go-test-mysqld"
 )
 
-func TestSeedWithForeignKey(t *testing.T) {
+type parent struct {
+	ID   int
+	Name string
+}
+
+type child struct {
+	ParentID int
+	Name     string
+}
+
+var (
+	port = 13306
+	DSN  = "root@tcp(127.0.0.1:13306)/"
+
+	parentSeedFilePath = "test/parent_seed.yml"
+	childSeedFilePath  = "test/child_seed.yml"
+	databaseFilePath   = "test/seed_test_database.yml"
+)
+
+func TestSeedWithForeingKey(t *testing.T) {
+	// Starts mysql
 	conf := mysqltest.NewConfig()
 	conf.SkipNetworking = false
-	conf.Port = 13306
-
-	// start new instance of mysql
+	conf.Port = port
 	mysqld, err := mysqltest.NewMysqld(conf)
 	if err != nil {
 		t.Fatal("Failed to start mysqld:", err)
 	}
 	defer mysqld.Stop()
 
-	// connect to instance
-	sqlconf := mysql.Config{
-		User:   "root",
-		Addr:   "127.0.0.1:13306",
-		Net:    "tcp",
-		Passwd: "",
-		DBName: "",
-	}
-	db, err := sql.Open("mysql", sqlconf.FormatDSN())
+	// Connects mysql
+	db, err := sql.Open("mysql", DSN)
 	if err != nil {
-		t.Fatal("Failed to connect to database:", err)
+		t.Fatal("Failed to connect database, ", DSN, ":", err)
 	}
 	defer db.Close()
 
-	// create new database
-	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS test")
-	if _, err := db.Exec(query); err != nil {
-		t.Fatal("Failed to create database if not exist:", err)
+	// Create database
+	qs := []string{}
+	qs = append(qs, "CREATE DATABASE IF NOT EXISTS test")
+	qs = append(qs, "USE test")
+	qs = append(qs, "CREATE TABLE parent(id int NOT NULL PRIMARY KEY, name varchar(20))")
+	qs = append(qs, "CREATE TABLE child(parent_id int, FOREIGN KEY(parent_id) REFERENCES parent(id), name varchar(20))")
+	for _, q := range qs {
+		if _, err = db.Exec(q); err != nil {
+			t.Fatal("Failed to exec query:", err)
+		}
 	}
 	defer func() {
-		query = fmt.Sprint("DROP DATABASE test")
-		if _, err := db.Exec(query); err != nil {
-			t.Fatal("Failed to drop test database:", err)
+		q := "DROP DATABASE test"
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal("Failed to drop database:", err)
 		}
 	}()
-	query = fmt.Sprint("USE test")
-	if _, err := db.Exec(query); err != nil {
-		t.Fatal("Failed to use test database:", err)
-	}
 
-	// create tables
-	query = fmt.Sprint("CREATE TABLE test.parent(id int NOT NULL PRIMARY KEY, name varchar(20))")
-	if _, err := db.Exec(query); err != nil {
-		t.Fatal("Failed to create parent table:", err)
-	}
-	query = fmt.Sprint("CREATE TABLE test.child(parent_id int, FOREIGN KEY(parent_id) REFERENCES parent(id), name varchar(20))")
-	if _, err := db.Exec(query); err != nil {
-		t.Fatal("Failed to create child table:", err)
-	}
-
-	// seeding child
-	err = exec.Command("go", "run", "cmd/migo/main.go", "-S", "test/child_seed.yml", "-d", "test/seed_test_database.yml", "-e", "test", "seed").Run()
+	// Seeding child
+	err = exec.Command("go", "run", "cmd/migo/main.go", "-S", childSeedFilePath, "-d", databaseFilePath, "-e", "test", "seed").Run()
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal("Failed to seed parent:", err)
 	}
-	// seeding parent
-	err = exec.Command("go", "run", "cmd/migo/main.go", "-S", "test/parent_seed.yml", "-d", "test/seed_test_database.yml", "-e", "test", "seed").Run()
+	// Seeding parent
+	err = exec.Command("go", "run", "cmd/migo/main.go", "-S", parentSeedFilePath, "-d", databaseFilePath, "-e", "test", "seed").Run()
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal("Failed to seed child:", err)
 	}
 
-	// assert
-	var id int
-	var name string
-
-	parent := db.QueryRow("SELECT id, name FROM parent LIMIT 1")
+	// Assert
+	p := parent{}
+	r := db.QueryRow("SELECT id, name FROM parent")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal("Failed to select parent:", err)
 	}
-	parent.Scan(&id, &name)
-	parentID, parentName := id, name
-	if parentID != 0 || parentName != "parent0" {
-		t.Error("Expected parentID is 0 and parentName is parent0 but not.")
+	r.Scan(&p.ID, &p.Name)
+	if p.ID != 1 || p.Name != "parent1" {
+		t.Errorf("Expected arguments are (1, \"parent1\") but actual (%d, %q)", p.ID, p.Name)
 	}
 
-	child := db.QueryRow("SELECT parent_id, name FROM child LIMIT 1")
+	c := child{}
+	r = db.QueryRow("SELECT parent_id, name FROM child")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal("Failed to select child:", err)
 	}
-	child.Scan(&id, &name)
-	childID, childName := id, name
-	if childID != 0 || childName != "child0" {
-		t.Error("Expected childID is 0 and childName is child0 but not.")
+	r.Scan(&c.ParentID, &c.Name)
+	if c.ParentID != 1 || c.Name != "child1" {
+		t.Errorf("Expected arguments are (1, \"child1\") but actual (%d, %q)", c.ParentID, c.Name)
 	}
 }
