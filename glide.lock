@@ -1,5 +1,5 @@
-hash: aec01534f3a15275c82ce788de3d495e678941fa467400e60f6bc32d7bc14f82
-updated: 2016-09-27T17:01:05.691989491+09:00
+hash: 5072f70ffa5450e99d370eeb2ff02996983cbd0eb793304e8a660d5096f23c3d
+updated: 2016-10-17T17:19:54.118304469+09:00
 imports:
 - name: github.com/cloudfoundry-incubator/candiedyaml
   version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
@@ -25,8 +25,14 @@ imports:
   version: 2e6eaaa5717f81bda41d27070d3c966f40a1e75f
 - name: github.com/lestrrat/go-structinfo
   version: f74c056fe41f860aa6264478c664a6fff8a64298
+- name: github.com/lestrrat/go-test-mysqld
+  version: 62b3bee29f50d605e6c2958cec1eabdd6b1ce21d
 - name: github.com/pkg/errors
   version: a887431f7f6ef7687b556dbf718d9f351d4858a0
 - name: github.com/urfave/cli
   version: d53eb991652b1d438abdd34ce4bfa3ef1539108e
-devImports: []
+- name: gopkg.in/yaml.v2
+  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+testImports:
+- name: github.com/lestrrat/go-tcputil
+  version: 3cae7c8432aeb817399f001e0db3f5bb04e8b8a6

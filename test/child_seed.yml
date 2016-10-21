@@ -1,0 +1,3 @@
+child:
+  - parent_id: 1
+    name: child1
