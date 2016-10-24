@@ -34,7 +34,7 @@ func DbInit(dbpath, env string) error {
 	}
 	defer db.Close()
 
-	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbname)
+	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s CHARACTER SET utf8mb4", dbname)
 	if _, err := db.Exec(query); err != nil {
 		return errors.Wrap(err, "Create database if not exist")
 	}
