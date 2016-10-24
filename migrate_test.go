@@ -170,12 +170,16 @@ func TestSQLBuildAddColumn(t *testing.T) {
 		t.Error("`Build error: %s", err)
 	}
 
-	if len(sql.Operations) != 1 {
+	if len(sql.Operations) != 2 {
 		t.Fatal("Should build 1 operation")
 	}
 
 	if sql.Operations[0].OperationType != ADDCLM {
 		t.Errorf("Should Operation type ADDCLM: %+v", sql.Operations)
+	}
+
+	if sql.Operations[1].OperationType != MODIFYCLM {
+		t.Errorf("Should Operation type MODIFYCLM: %+v", sql.Operations)
 	}
 
 }

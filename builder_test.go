@@ -95,6 +95,9 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should not null flag is true")
 	}
 
+	if col.AutoUpdateFlag != true {
+		t.Error("Should auto_update is true")
+	}
 	if col.UniqueFlag != true {
 		t.Error("Should unique flag is true")
 	}

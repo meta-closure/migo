@@ -150,7 +150,7 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
 			c.Default = st
-		case "unique", "auto_increment", "not_null":
+		case "unique", "auto_increment", "not_null", "auto_update":
 			b, ok := v.(bool)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
@@ -159,8 +159,10 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				c.UniqueFlag = b
 			} else if k == "auto_increment" {
 				c.AutoIncrementFlag = b
-			} else {
+			} else if k == "not_null" {
 				c.NotNullFlag = b
+			} else {
+				c.AutoUpdateFlag = b
 			}
 		case "foreign_key":
 			fk, ok := v.(map[string]interface{})

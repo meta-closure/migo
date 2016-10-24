@@ -53,6 +53,7 @@ type Column struct {
 	FK                ForeignKey
 	UniqueFlag        bool
 	AutoIncrementFlag bool
+	AutoUpdateFlag    bool
 	NotNullFlag       bool
 	Default           string
 }
@@ -254,6 +255,9 @@ func SameColumn(o, n Column) bool {
 	if o.Default != n.Default {
 		return false
 	}
+	if o.AutoUpdateFlag != n.AutoUpdateFlag {
+		return false
+	}
 	return true
 }
 
@@ -323,7 +327,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 				// append operation to add column
 				op = GetColumnOperation(oldtab, tab, oldcol, col, ADDCLM)
 				sql.Operations = append(sql.Operations, op)
-				continue
 			} else {
 				// append operation to change column data
 				if oldcol.Name != col.Name {
@@ -510,7 +513,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 // auto increment flag need key setting
 func (c Operation) GetColumnOption(aiflag bool) string {
 	q := ""
-	if aiflag && c.Column.AutoIncrementFlag {
+	if aiflag {
 		q += " AUTO_INCREMENT"
 	}
 	if c.Column.NotNullFlag {
@@ -519,25 +522,38 @@ func (c Operation) GetColumnOption(aiflag bool) string {
 	if c.Column.UniqueFlag {
 		q += " UNIQUE"
 	}
+	if c.Column.AutoUpdateFlag {
+		q += " ON UPDATE CURRENT_TIMESTAMP"
+	}
 	if c.Column.Default != "" {
 		q += fmt.Sprintf(" DEFAULT '%s'", c.Column.Default)
+	}
+	if c.Column.Default == "" && c.Column.Type == "datetime" {
+		q += " DEFAULT CURRENT_TIMESTAMP"
+
 	}
 	return q
 }
 
 func (c Operation) GetColumnRecoverOption(aiflag bool) string {
 	q := ""
-	if aiflag && c.OldColumn.AutoIncrementFlag {
+	if aiflag {
 		q += " AUTO_INCREMENT"
 	}
-	if c.Column.NotNullFlag {
+	if c.OldColumn.NotNullFlag {
 		q += " NOT NULL"
 	}
-	if c.Column.UniqueFlag {
+	if c.OldColumn.UniqueFlag {
 		q += " UNIQUE"
 	}
-	if c.Column.Default != "" {
+	if c.OldColumn.AutoUpdateFlag {
+		q += " ON UPDATE CURRENT_TIMESTAMP"
+	}
+	if c.OldColumn.Default != "" {
 		q += fmt.Sprintf(" DEFAULT '%s'", c.Column.Default)
+	}
+	if c.OldColumn.Default == "" && c.Column.Type == "datetime" {
+		q += " DEFAULT CURRENT_TIMESTAMP"
 	}
 	return q
 }
