@@ -21,6 +21,8 @@ definitions:
                     type: test_type
                     auto_increment: true
                     unique: true
+                    auto_update: true
+                    default: default_test
                     foreign_key:
                         name: fk_test
                         target_table: '#/definitions/fk_table'

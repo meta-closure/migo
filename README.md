@@ -15,7 +15,7 @@ Read a (extended) JSON Schema file and migrate database table status.
 migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e environment run
 ```
 
-Before migrate, you might check a operation what migo do,
+Before migrate, you might check a operation plan what migo would do,
 Plan command enable to see operation list
 
 ```sh;
@@ -26,7 +26,7 @@ migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e 
 
 ### Database configure Sample
 
-If specify some database config file, such that 
+Specify some database config file, such that 
 
 ```yaml:
 default:
@@ -49,13 +49,13 @@ master:
 
 ```
 
-then migo read configure that you specify environment. if empty then migo read
+Then migo want to read the configure from the environment that you select, if empty then migo read
 "default" environment.
 Read db tag and create DSN(Data Source Name) to connect your database.
 
 ### Table Configure Sample
 
-Read table tag and modify a table setting, set a primary key or a index key.
+Migo change a table setting, you can configure a primary key or a index key.
 migo identify each table and column in their hash table key,
 so if you want to change a table name, you just overide name.
 
@@ -89,11 +89,19 @@ column:
     not_null: true
     name: column_sample
     foreign_key:
-        name: fk_identifier
+        name: fk_identifieir
         target_table: /link/base/schema
         target_column: fk_column
         
 ```
+
+migo can read some config such that 
+
+- auto_increment(bool)
+- auto_update(bool, for datetime or timestamp type column)
+- not_null(bool)
+- unique(bool)
+- default
 
 ## How to Init to use migo 
 
@@ -136,13 +144,9 @@ then he attempt to recover before database states, quering reverse operation wha
 
 If you might to Rollback. you just run specify a previous JSON Schema file or State file.
 
-## Test
+## test
 
-```
-go test -v .
-```
-
-or
+Migo's test is need MySQL docker container. 
 
 ```
 ./bin/test
