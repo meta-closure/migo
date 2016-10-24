@@ -175,7 +175,7 @@ func TestSQLBuildAddColumn(t *testing.T) {
 	}
 
 	if sql.Operations[0].OperationType != ADDCLM {
-		t.Error("Should Operation type ADDCLM")
+		t.Errorf("Should Operation type ADDCLM: %+v", sql.Operations)
 	}
 
 }
@@ -194,7 +194,7 @@ func TestSQLBuildDropColumn(t *testing.T) {
 	}
 
 	if sql.Operations[0].OperationType != DROPCLM {
-		t.Error("Should Operation type DROPCLM")
+		t.Errorf("Should Operation type DROPCLM: %s", sql.Operations)
 	}
 
 }
@@ -210,7 +210,7 @@ func TestSQLBuildSameColumn(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 0 {
-		t.Fatal("Should build 0 peration")
+		t.Fatalf("Should build 0 Operation: %+v", sql.Operations)
 	}
 
 }
@@ -334,8 +334,7 @@ func TestSQLBuildDropIndex(t *testing.T) {
 	}
 }
 
-func TestSQLBuildAddAutoIncrement(t *testing.T) {
-
+func TestSQLAddPK(t *testing.T) {
 	o := ColumnCase()
 	n := PKCase()
 
@@ -348,15 +347,84 @@ func TestSQLBuildAddAutoIncrement(t *testing.T) {
 	}
 
 	if len(sql.Operations) != 2 {
-		t.Fatal("Should build 2 operation")
+		t.Fatal("Should build 2 operation: %+v", sql.Operations)
 	}
 
 	if sql.Operations[0].OperationType != ADDPK {
-		t.Error("Should First Operation's OperationType ADDPK")
+		t.Errorf("Should first operation type is ADDPK: %d", sql.Operations[0].OperationType)
 	}
 
 	if sql.Operations[1].OperationType != MODIFYAICLM {
-		t.Error("Should Second Operation's OperationType MODIFYAICLM")
+		t.Errorf("Should first operation type is MODEFYAICLM: %d", sql.Operations[1].OperationType)
+	}
+}
+
+func TestSQLDropPK(t *testing.T) {
+	o := PKCase()
+	n := ColumnCase()
+
+	o.Table[0].Column[0].AutoIncrementFlag = true
+
+	sql, err := o.SQLBuilder(n)
+
+	if err != nil {
+		t.Error("Build error: %s", err)
+	}
+
+	if len(sql.Operations) != 2 {
+		t.Fatalf("Should build 2 operation: %+v", sql.Operations)
+	}
+
+	if sql.Operations[0].OperationType != MODIFYAICLM {
+		t.Errorf("Should first operation type is MODEFYAICLM: %d", sql.Operations[0].OperationType)
+	}
+
+	if sql.Operations[1].OperationType != DROPPK {
+		t.Errorf("Should first operation type is DROPPK: %d", sql.Operations[1].OperationType)
+	}
+}
+
+func TestSQLBuildAddAutoIncrement(t *testing.T) {
+
+	o := PKCase()
+	n := PKCase()
+
+	n.Table[0].Column[0].AutoIncrementFlag = true
+
+	sql, err := o.SQLBuilder(n)
+
+	if err != nil {
+		t.Error("Build error: %s", err)
+	}
+
+	if len(sql.Operations) != 1 {
+		t.Fatal("Should build 1 operation: %+v", sql.Operations)
+	}
+
+	if sql.Operations[0].OperationType != MODIFYAICLM {
+		t.Error("Should OperationType MODIFYAICLM: %+v", sql.Operations)
+	}
+}
+
+func TestSQLBuildDropAutoIncrement(t *testing.T) {
+
+	o := PKCase()
+	n := PKCase()
+
+	o.Table[0].Column[0].AutoIncrementFlag = true
+
+	sql, err := o.SQLBuilder(n)
+
+	if err != nil {
+		t.Error("Build error: %s", err)
+	}
+
+	if len(sql.Operations) != 1 {
+		t.Fatal("Should build 1 operation: %+v", sql.Operations)
+	}
+
+	if sql.Operations[0].OperationType != MODIFYAICLM {
+		t.Error("Should OperationType MODIFYAICLM: %+v", sql.Operations)
 	}
 }
 

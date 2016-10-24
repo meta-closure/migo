@@ -99,6 +99,10 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should unique flag is true")
 	}
 
+	if col.Default != "default_test" {
+		t.Error("Should default is default_test")
+	}
+
 	if col.AutoIncrementFlag != true {
 		t.Error("Should auto_increment flag is true")
 	}

@@ -98,32 +98,22 @@ func NewDb(dbpath, env string) (*Db, error) {
 	conn := y[env].(map[string]interface{})
 	for k, v := range conn {
 		switch k {
-		case "user":
+		case "user", "passwd", "addr", "dbname":
 			st, ok := v.(string)
 			if ok != true {
 				return conf, errors.Wrap(ErrTypeInvalid, k)
 			}
-			conf.User = st
-		case "passwd":
-			st, ok := v.(string)
-			if ok != true {
-				return conf, errors.Wrap(ErrTypeInvalid, k)
+			if k == "user" {
+				conf.User = st
+			} else if k == "passwd" {
+				conf.Passwd = st
+			} else if k == "addr" {
+				conf.Addr = st
+			} else {
+				conf.DBName = st
 			}
-			conf.Passwd = st
-		case "addr":
-			st, ok := v.(string)
-			if ok != true {
-				return conf, errors.Wrap(ErrTypeInvalid, k)
-			}
-			conf.Addr = st
-		case "dbname":
-			st, ok := v.(string)
-			if ok != true {
-				return conf, errors.Wrap(ErrTypeInvalid, k)
-			}
-			conf.DBName = st
 		default:
-			continue
+			return nil, errors.Wrap(ErrInvalidDbColumn, k)
 		}
 	}
 	return conf, nil
@@ -135,10 +125,13 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 		return ErrTypeInvalid
 	}
 
+	if col["name"] == nil || col["type"] == nil {
+		return errors.Wrap(ErrEmpty, "name or type")
+	}
+
 	for k, v := range col {
 		switch k {
-		case "name":
-
+		case "name", "type":
 			st, ok := v.(string)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
@@ -146,37 +139,29 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 			if st == "" {
 				return errors.Wrap(ErrEmpty, k)
 			}
-
-			c.Name = st
-		case "type":
+			if k == "name" {
+				c.Name = st
+			} else {
+				c.Type = st
+			}
+		case "default":
 			st, ok := v.(string)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			if st == "" {
-				return errors.Wrap(ErrEmpty, k)
-			}
-
-			c.Type = st
-		case "unique":
+			c.Default = st
+		case "unique", "auto_increment", "not_null":
 			b, ok := v.(bool)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			c.UniqueFlag = b
-
-		case "auto_increment":
-			b, ok := v.(bool)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
+			if k == "unique" {
+				c.UniqueFlag = b
+			} else if k == "auto_increment" {
+				c.AutoIncrementFlag = b
+			} else {
+				c.NotNullFlag = b
 			}
-			c.AutoIncrementFlag = b
-		case "not_null":
-			b, ok := v.(bool)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			c.NotNullFlag = b
 		case "foreign_key":
 			fk, ok := v.(map[string]interface{})
 			if ok != true {
@@ -189,7 +174,7 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				return errors.Wrap(ErrEmpty, "foreign key's name")
 			}
 
-			if t := fk["target_table"]; t != nil {
+			if fk["target_table"] != nil {
 				tt, _ := fk["target_table"].(string)
 				c.FK.TargetTable = tt
 			} else {
@@ -214,9 +199,13 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 		return ErrTypeInvalid
 	}
 
+	if table["name"] == nil {
+		return errors.Wrap(ErrEmpty, "name")
+	}
+
 	for k, v := range table {
 		switch k {
-		case "primary_key":
+		case "primary_key", "index":
 			if v == nil {
 				return errors.Wrap(ErrEmpty, k)
 			}
@@ -243,37 +232,11 @@ func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) erro
 				}
 				ks = append(ks, Key{Name: name, Target: ps})
 			}
-			t.PrimaryKey = ks
-
-		case "index":
-			if v == nil {
-				return errors.Wrap(ErrEmpty, k)
+			if k == "primary_key" {
+				t.PrimaryKey = ks
+			} else {
+				t.Index = ks
 			}
-
-			l, ok := v.(map[string]interface{})
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-
-			ks := []Key{}
-			for name, keys := range l {
-				ps := []string{}
-				keylist, ok := keys.([]interface{})
-				if ok != true {
-					return errors.Wrap(ErrTypeInvalid, k)
-				}
-
-				for _, key := range keylist {
-					p, ok := key.(string)
-					if ok != true {
-						return errors.Wrap(ErrTypeInvalid, k)
-					}
-					ps = append(ps, p)
-				}
-				ks = append(ks, Key{Name: name, Target: ps})
-			}
-			t.Index = ks
-
 		case "name":
 			if v == nil {
 				return errors.Wrap(ErrEmpty, k)

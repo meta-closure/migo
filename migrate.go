@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	ErrInvalidDbColumn   = errors.New("Invalid Database column")
 	ErrEmpty             = errors.New("Required parameter is empty")
 	ErrTypeInvalid       = errors.New("Invalid type error")
 	ErrInvalidTable      = errors.New("Invalid type name")
@@ -250,7 +251,9 @@ func SameColumn(o, n Column) bool {
 	if o.UniqueFlag != n.UniqueFlag {
 		return false
 	}
-
+	if o.Default != n.Default {
+		return false
+	}
 	return true
 }
 
@@ -271,7 +274,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 	// Setting database connection configure
 	sql := NewSql(n.Db)
 	var op Operation
-
 	// add and change table check
 	for _, tab := range n.Table {
 		oldtab, ok := o.GetTable(tab.Id)
@@ -311,13 +313,13 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 		}
 
 	}
-
 	// add and change column check
+	var aiop []Operation
 	for _, tab := range n.Table {
 		oldtab, _ := o.GetTable(tab.Id)
 		for _, col := range tab.Column {
 			oldcol, ok := oldtab.GetColumn(col.Id)
-			if ok != true {
+			if !ok {
 				// append operation to add column
 				op = GetColumnOperation(oldtab, tab, oldcol, col, ADDCLM)
 				sql.Operations = append(sql.Operations, op)
@@ -332,16 +334,17 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 
 			// append operation to change column data
 			// auto increment need key setting, then skip AI config after key set
-			if SameColumn(oldcol, col) != true {
-				if oldcol.AutoIncrementFlag == true {
-					op = GetColumnOperation(oldtab, tab, oldcol, col, MODIFYAICLM)
-					sql.Operations = append(sql.Operations, op)
-				} else if oldcol.AutoIncrementFlag != col.AutoIncrementFlag {
-					continue
-				} else {
-					op = GetColumnOperation(oldtab, tab, oldcol, col, MODIFYCLM)
-					sql.Operations = append(sql.Operations, op)
-				}
+			if !SameColumn(oldcol, col) {
+				op = GetColumnOperation(oldtab, tab, oldcol, col, MODIFYCLM)
+				sql.Operations = append(sql.Operations, op)
+			}
+			if !oldcol.AutoIncrementFlag && col.AutoIncrementFlag {
+				op = GetColumnOperation(oldtab, tab, oldcol, col, MODIFYAICLM)
+				aiop = append(aiop, op)
+			}
+			if oldcol.AutoIncrementFlag && !col.AutoIncrementFlag {
+				op = GetColumnOperation(oldtab, tab, oldcol, col, MODIFYAICLM)
+				sql.Operations = append(sql.Operations, op)
 			}
 		}
 	}
@@ -403,7 +406,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 					b = true
 				}
 			}
-			// drop index and auto_increment
+			// drop index
 			if b != true {
 				conv, err := ConvertKeyId2Name(oldtab, oldkey)
 				if err != nil {
@@ -421,7 +424,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 					b = true
 					// if key selection change, then drop old key and create new key
 					if SameKey(oldkey.Target, key.Target) != true {
-						// drop PrimaryKey key and auto_increment
+						// drop PrimaryKey key
 						conv, err := ConvertKeyId2Name(oldtab, oldkey)
 						if err != nil {
 							return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
@@ -429,7 +432,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 						op = GetKeyOperation(oldtab, tab, conv, DROPPK)
 						sql.Operations = append(sql.Operations, op)
 
-						// add PrimaryKey key and auto_increment
+						// add PrimaryKey key
 						conv, err = ConvertKeyId2Name(tab, key)
 						if err != nil {
 							return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
@@ -448,13 +451,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 				}
 				op = GetKeyOperation(oldtab, tab, conv, ADDPK)
 				sql.Operations = append(sql.Operations, op)
-				for _, idx := range key.Target {
-					col, _ := tab.GetColumn(idx)
-					if col.AutoIncrementFlag == true {
-						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
-						sql.Operations = append(sql.Operations, op)
-					}
-				}
 			}
 		}
 
@@ -467,13 +463,6 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			}
 			// drop PrimaryKey and auto_increment
 			if b != true {
-				for _, idx := range oldkey.Target {
-					col, _ := oldtab.GetColumn(idx)
-					if col.AutoIncrementFlag == true {
-						op = GetColumnOperation(oldtab, tab, Column{}, col, MODIFYAICLM)
-						sql.Operations = append(sql.Operations, op)
-					}
-				}
 				conv, err := ConvertKeyId2Name(oldtab, oldkey)
 				if err != nil {
 					return nil, errors.Wrapf(err, "Converting new state [%s] table key id into name", tab.Name)
@@ -483,7 +472,8 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			}
 		}
 	}
-
+	// auto increment operation executed after add primary keys
+	sql.Operations = append(sql.Operations, aiop...)
 	for _, tab := range n.Table {
 		oldtab, _ := o.GetTable(tab.Id)
 		for _, col := range tab.Column {
@@ -520,15 +510,30 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 // auto increment flag need key setting
 func (c Operation) GetColumnOption(aiflag bool) string {
 	q := ""
-	if aiflag {
-		if c.Column.AutoIncrementFlag == true && c.OldColumn.AutoIncrementFlag == true {
-			q += " AUTO_INCREMENT"
-		}
+	if aiflag && c.Column.AutoIncrementFlag {
+		q += " AUTO_INCREMENT"
 	}
-	if c.Column.NotNullFlag == true {
+	if c.Column.NotNullFlag {
 		q += " NOT NULL"
 	}
-	if c.Column.UniqueFlag == true {
+	if c.Column.UniqueFlag {
+		q += " UNIQUE"
+	}
+	if c.Column.Default != "" {
+		q += fmt.Sprintf(" DEFAULT '%s'", c.Column.Default)
+	}
+	return q
+}
+
+func (c Operation) GetColumnRecoverOption(aiflag bool) string {
+	q := ""
+	if aiflag && c.OldColumn.AutoIncrementFlag {
+		q += " AUTO_INCREMENT"
+	}
+	if c.Column.NotNullFlag {
+		q += " NOT NULL"
+	}
+	if c.Column.UniqueFlag {
 		q += " UNIQUE"
 	}
 	if c.Column.Default != "" {
@@ -573,7 +578,7 @@ func (c Operation) QueryBuilder() (string, error) {
 
 	case MODIFYCLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.Column.Name, c.Column.Type)
-		q += c.GetColumnOption(true)
+		q += c.GetColumnOption(false)
 		return q, nil
 
 	case MODIFYAICLM:
@@ -583,7 +588,7 @@ func (c Operation) QueryBuilder() (string, error) {
 
 	case CHANGECLM:
 		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.OldColumn.Name, c.Column.Name, c.Column.Type)
-		q += c.GetColumnOption(true)
+		q += c.GetColumnOption(false)
 		return q, nil
 
 	case ADDPK:
@@ -634,7 +639,7 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case DROPCLM:
 		q += fmt.Sprintf("ADD COLUMN %s %s", c.OldColumn.Name, c.OldColumn.Type)
-		q += c.GetColumnOption(true)
+		q += c.GetColumnRecoverOption(true)
 		return q, nil
 
 	case ADDCLM:
@@ -643,17 +648,17 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case MODIFYCLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.OldColumn.Name, c.OldColumn.Type)
-		q += c.GetColumnOption(true)
+		q += c.GetColumnRecoverOption(true)
 		return q, nil
 
 	case MODIFYAICLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.Column.Name, c.Column.Type)
-		q += c.GetColumnOption(false)
+		q += c.GetColumnRecoverOption(false)
 		return q, nil
 
 	case CHANGECLM:
 		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.Column.Name, c.OldColumn.Name, c.OldColumn.Type)
-		q += c.GetColumnOption(true)
+		q += c.GetColumnRecoverOption(true)
 		return q, nil
 
 	case DROPPK:
