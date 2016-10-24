@@ -53,6 +53,7 @@ type Column struct {
 	UniqueFlag        bool
 	AutoIncrementFlag bool
 	NotNullFlag       bool
+	Default           string
 }
 
 type Operation struct {
@@ -514,6 +515,40 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 	return sql, nil
 }
 
+// GetColumnOption is getting column option,
+// aiflag is flag to add auto increment option, becouse
+// auto increment flag need key setting
+func (c Operation) GetColumnOption(aiflag bool) string {
+	q := ""
+	if aiflag {
+		if c.Column.AutoIncrementFlag == true && c.OldColumn.AutoIncrementFlag == true {
+			q += " AUTO_INCREMENT"
+		}
+	}
+	if c.Column.NotNullFlag == true {
+		q += " NOT NULL"
+	}
+	if c.Column.UniqueFlag == true {
+		q += " UNIQUE"
+	}
+	if c.Column.Default != "" {
+		q += fmt.Sprintf(" DEFAULT '%s'", c.Column.Default)
+	}
+	return q
+}
+
+func ConvertList2SQL(l []string) string {
+	sq := ""
+	for j, i := range l {
+		if j == 0 {
+			sq += i
+		} else {
+			sq += ", " + i
+		}
+	}
+	return sq
+}
+
 func (c Operation) QueryBuilder() (string, error) {
 	q := fmt.Sprintf("ALTER TABLE %s ", c.Table.Name)
 
@@ -529,12 +564,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		return q, nil
 	case ADDCLM:
 		q += fmt.Sprintf("ADD COLUMN %s %s", c.Column.Name, c.Column.Type)
-		if c.Column.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.Column.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(false)
 		return q, nil
 
 	case DROPCLM:
@@ -543,55 +573,21 @@ func (c Operation) QueryBuilder() (string, error) {
 
 	case MODIFYCLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.Column.Name, c.Column.Type)
-		if c.Column.AutoIncrementFlag == true && c.OldColumn.AutoIncrementFlag == true {
-			q += " AUTO_INCREMENT"
-		}
-		if c.Column.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.Column.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(true)
 		return q, nil
 
 	case MODIFYAICLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.Column.Name, c.Column.Type)
-		if c.Column.AutoIncrementFlag == true {
-			q += " AUTO_INCREMENT"
-		}
-		if c.Column.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.Column.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(true)
 		return q, nil
 
 	case CHANGECLM:
 		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.OldColumn.Name, c.Column.Name, c.Column.Type)
-
-		if c.Column.AutoIncrementFlag == true && c.OldColumn.AutoIncrementFlag == true {
-			q += " AUTO_INCREMENT"
-		}
-		if c.Column.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.Column.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(true)
 		return q, nil
 
 	case ADDPK:
-		pk := ""
-		for j, i := range c.Key.Target {
-			if j == 0 {
-				pk += i
-			} else {
-				pk += ", " + i
-			}
-		}
-
-		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.Key.Name, pk)
+		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.Key.Name, ConvertList2SQL(c.Key.Target))
 		return q, nil
 
 	case DROPPK:
@@ -599,16 +595,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		return q, nil
 
 	case ADDINDEX:
-		idx := ""
-
-		for j, i := range c.Key.Target {
-			if j == 0 {
-				idx += i
-			} else {
-				idx += ", " + i
-			}
-		}
-		q += fmt.Sprintf("ADD INDEX %s (%s)", c.Key.Name, idx)
+		q += fmt.Sprintf("ADD INDEX %s (%s)", c.Key.Name, ConvertList2SQL(c.Key.Target))
 		return q, nil
 
 	case DROPINDEX:
@@ -647,15 +634,7 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case DROPCLM:
 		q += fmt.Sprintf("ADD COLUMN %s %s", c.OldColumn.Name, c.OldColumn.Type)
-		if c.OldColumn.AutoIncrementFlag == true {
-			q += " AUTO_INCREMENT"
-		}
-		if c.OldColumn.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.OldColumn.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(true)
 		return q, nil
 
 	case ADDCLM:
@@ -664,52 +643,21 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case MODIFYCLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.OldColumn.Name, c.OldColumn.Type)
-		if c.OldColumn.AutoIncrementFlag == true {
-			q += " AUTO_INCREMENT"
-		}
-		if c.OldColumn.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.OldColumn.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(true)
 		return q, nil
 
 	case MODIFYAICLM:
 		q += fmt.Sprintf("MODIFY %s  %s", c.Column.Name, c.Column.Type)
-		if c.Column.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.Column.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(false)
 		return q, nil
 
 	case CHANGECLM:
 		q += fmt.Sprintf("CHANGE COLUMN %s %s %s", c.Column.Name, c.OldColumn.Name, c.OldColumn.Type)
-
-		if c.OldColumn.AutoIncrementFlag == true {
-			q += " AUTO_INCREMENT"
-		}
-		if c.OldColumn.NotNullFlag == true {
-			q += " NOT NULL"
-		}
-		if c.OldColumn.UniqueFlag == true {
-			q += " UNIQUE"
-		}
+		q += c.GetColumnOption(true)
 		return q, nil
 
 	case DROPPK:
-		pk := ""
-		for j, i := range c.Key.Target {
-			if j == 0 {
-				pk += i
-			} else {
-				pk += ", " + i
-			}
-		}
-
-		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.Key.Name, pk)
+		q += fmt.Sprintf("ADD PRIMARY KEY %s (%s)", c.Key.Name, ConvertList2SQL(c.Key.Target))
 		return q, nil
 
 	case ADDPK:
@@ -717,16 +665,7 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 		return q, nil
 
 	case DROPINDEX:
-		idx := ""
-		for j, i := range c.Key.Target {
-			if j == 0 {
-				idx += i
-			} else {
-				idx += ", " + i
-			}
-		}
-
-		q += fmt.Sprintf("ADD INDEX %s (%s)", c.Key.Name, idx)
+		q += fmt.Sprintf("ADD INDEX %s (%s)", c.Key.Name, ConvertList2SQL(c.Key.Target))
 		return q, nil
 
 	case ADDINDEX:
