@@ -89,11 +89,19 @@ column:
     not_null: true
     name: column_sample
     foreign_key:
-        name: fk_identifier
+        name: fk_identifieir
         target_table: /link/base/schema
         target_column: fk_column
         
 ```
+
+migo can read some config such that 
+
+- auto_increment(bool)
+- auto_update(bool, for datetime or timestamp type column)
+- not_null(bool)
+- unique(bool)
+- default
 
 ## How to Init to use migo 
 
