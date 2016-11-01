@@ -94,7 +94,6 @@ func TestScm2State(t *testing.T) {
 	if col.NotNullFlag != true {
 		t.Error("Should not null flag is true")
 	}
-
 	if col.AutoUpdateFlag != true {
 		t.Error("Should auto_update is true")
 	}
@@ -102,6 +101,13 @@ func TestScm2State(t *testing.T) {
 		t.Error("Should unique flag is true")
 	}
 
+	if col.FK.UpdateCascade != true {
+		t.Error("Should update_cascade flag is true")
+	}
+
+	if col.FK.DeleteCascade != true {
+		t.Error("Should delete_cascade flag is true")
+	}
 	if col.Default != "default_test" {
 		t.Error("Should default is default_test")
 	}

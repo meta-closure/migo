@@ -24,6 +24,8 @@ definitions:
                     auto_update: true
                     default: default_test
                     foreign_key:
+                        update_cascade: true
+                        delete_cascade: true
                         name: fk_test
                         target_table: '#/definitions/fk_table'
                         target_column: fk_column

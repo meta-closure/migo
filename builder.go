@@ -150,7 +150,7 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
 			c.Default = st
-		case "unique", "auto_increment", "not_null", "auto_update":
+		case "unique", "auto_increment", "not_null", "auto_update", "update_cascade", "delete_cascade":
 			b, ok := v.(bool)
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
@@ -161,7 +161,7 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 				c.AutoIncrementFlag = b
 			} else if k == "not_null" {
 				c.NotNullFlag = b
-			} else {
+			} else if k == "auto_update" {
 				c.AutoUpdateFlag = b
 			}
 		case "foreign_key":
@@ -169,25 +169,31 @@ func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) er
 			if ok != true {
 				return errors.Wrap(ErrTypeInvalid, k)
 			}
-			if fk["name"] != nil {
-				nm, _ := fk["name"].(string)
-				c.FK.Name = nm
-			} else {
-				return errors.Wrap(ErrEmpty, "foreign key's name")
-			}
-
-			if fk["target_table"] != nil {
-				tt, _ := fk["target_table"].(string)
-				c.FK.TargetTable = tt
-			} else {
-				return errors.Wrap(ErrEmpty, "foreign key's target table")
-			}
-
-			if fk["target_column"] != nil {
-				tc, _ := fk["target_column"].(string)
-				c.FK.TargetColumn = tc
-			} else {
-				return errors.Wrap(ErrEmpty, "foreign key's target column")
+			for key, val := range fk {
+				switch key {
+				case "name", "target_table", "target_column":
+					st, ok := val.(string)
+					if !ok {
+						return errors.Wrapf(ErrEmpty, "foreign key: %+v", fk)
+					}
+					if key == "name" {
+						c.FK.Name = st
+					} else if key == "target_table" {
+						c.FK.TargetTable = st
+					} else if key == "target_column" {
+						c.FK.TargetColumn = st
+					}
+				case "update_cascade", "delete_cascade":
+					b, ok := val.(bool)
+					if !ok {
+						return errors.Wrapf(ErrEmpty, "foreign key: %+v", fk)
+					}
+					if key == "update_cascade" {
+						c.FK.UpdateCascade = b
+					} else if key == "delete_cascade" {
+						c.FK.DeleteCascade = b
+					}
+				}
 			}
 		}
 	}
