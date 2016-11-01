@@ -40,9 +40,11 @@ type Key struct {
 }
 
 type ForeignKey struct {
-	Name         string
-	TargetTable  string
-	TargetColumn string
+	Name          string
+	TargetTable   string
+	TargetColumn  string
+	UpdateCascade bool
+	DeleteCascade bool
 }
 
 type Column struct {
@@ -258,6 +260,7 @@ func SameColumn(o, n Column) bool {
 	if o.AutoUpdateFlag != n.AutoUpdateFlag {
 		return false
 	}
+
 	return true
 }
 
@@ -475,7 +478,7 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			}
 		}
 	}
-	// auto increment operation executed after add primary keys
+
 	sql.Operations = append(sql.Operations, aiop...)
 	for _, tab := range n.Table {
 		oldtab, _ := o.GetTable(tab.Id)
@@ -625,6 +628,12 @@ func (c Operation) QueryBuilder() (string, error) {
 
 	case ADDFK:
 		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)", c.Column.FK.Name, c.Column.Name, c.Column.FK.TargetTable, c.Column.FK.TargetColumn)
+		if c.Column.FK.UpdateCascade {
+			q += " ON UPDATE CASCADE"
+		}
+		if c.Column.FK.DeleteCascade {
+			q += " ON DELETE CASCADE"
+		}
 		return q, nil
 
 	case DROPFK:
@@ -695,6 +704,12 @@ func (c Operation) RecoveryQueryBuilder() (string, error) {
 
 	case DROPFK:
 		q += fmt.Sprintf("ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)", c.OldColumn.FK.Name, c.OldColumn.Name, c.OldColumn.FK.TargetTable, c.OldColumn.FK.TargetColumn)
+		if c.OldColumn.FK.UpdateCascade {
+			q += " ON UPDATE CASCADE"
+		}
+		if c.OldColumn.FK.DeleteCascade {
+			q += " ON DELETE CASCADE"
+		}
 		return q, nil
 
 	case ADDFK:
@@ -760,6 +775,7 @@ func (s *Sql) Migrate() (int, error) {
 	for i, q := range qs {
 		_, err = db.Exec(q)
 		if err != nil {
+			fmt.Println(q, err)
 			fmt.Println(">>>>>>>> MIGRATION FAILED")
 			return i, errors.Wrapf(err, "Query: %s", q)
 		}
