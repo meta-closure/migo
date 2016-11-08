@@ -42,12 +42,7 @@ func GetInsertQuery(table string, data interface{}) (string, error) {
 	return q, nil
 }
 
-func GetInsertQueries(path string) ([]string, error) {
-	y, err := ParseYAML(path)
-	if err != nil {
-		return nil, errors.Wrap(err, "Parse YAML")
-	}
-
+func GetInsertQueries(y map[string]interface{}) ([]string, error) {
 	qs := []string{offFKCheck}
 	for table, data := range y {
 		datalist, ok := data.([]interface{})
@@ -66,11 +61,7 @@ func GetInsertQueries(path string) ([]string, error) {
 	return qs, nil
 }
 
-func GetDeleteQueries(path string) ([]string, error) {
-	y, err := ParseYAML(path)
-	if err != nil {
-		return nil, errors.Wrap(err, "Parse YAML")
-	}
+func GetDeleteQueries(y map[string]interface{}) ([]string, error) {
 
 	qs := []string{offFKCheck}
 	for table, _ := range y {
@@ -96,8 +87,8 @@ func Exec(qs []string, dsn string) error {
 	return nil
 }
 
-func InsertRecords(path, dsn string) error {
-	qs, err := GetInsertQueries(path)
+func InsertRecords(y map[string]interface{}, dsn string) error {
+	qs, err := GetInsertQueries(y)
 	if err != nil {
 		return err
 	}
@@ -107,8 +98,8 @@ func InsertRecords(path, dsn string) error {
 	return nil
 }
 
-func DropRecords(path, dsn string) error {
-	qs, err := GetDeleteQueries(path)
+func DropRecords(y map[string]interface{}, dsn string) error {
+	qs, err := GetDeleteQueries(y)
 	if err != nil {
 		return err
 	}
@@ -124,7 +115,12 @@ func Seed(path, dbpath, env string) error {
 		return err
 	}
 
-	if err := InsertRecords(path, dsn); err != nil {
+	y, err := ParseYAML(path)
+	if err != nil {
+		return err
+	}
+
+	if err := InsertRecords(y, dsn); err != nil {
 		return err
 	}
 
