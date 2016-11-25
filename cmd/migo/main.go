@@ -14,7 +14,7 @@ func SetupCmd() *cli.App {
 	app := cli.NewApp()
 
 	app.Name = "migo"
-	app.Usage = "database migrater from a JSON Schema file"
+	app.Usage = "database migrate from a JSON Schema file"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -30,19 +30,19 @@ func SetupCmd() *cli.App {
 		cli.StringFlag{
 			Name:  "database, d",
 			Value: "./database.yml",
-			Usage: "Load `database` configuration from YAMLformat file. default database.yml",
+			Usage: "Load `database` configuration from YAML formatted file. In default database.yml",
 		},
 		cli.StringFlag{
 			Name:  "json, j",
-			Usage: "Load configuration from `Schema` JSON format file.",
+			Usage: "Load configuration from `Schema` JSON formatted file.",
 		},
 		cli.StringFlag{
 			Name:  "yaml, y",
-			Usage: "Load configuration from `Schema` YAML format file.",
+			Usage: "Load configuration from `Schema` YAML formatted file.",
 		},
 		cli.StringFlag{
 			Name:  "state, s",
-			Usage: "Load internal state from `State` YAML format file.",
+			Usage: "Load internal state from `State` YAML formatted file.",
 		},
 	}
 
@@ -89,7 +89,7 @@ func runner(c *cli.Context, mode string) error {
 
 	s := c.GlobalString("state")
 	if s == "" {
-		return errors.New("State file is not speficied")
+		return errors.New("State file is not specified")
 	}
 
 	o, err := migo.ParseState(s)

@@ -312,7 +312,7 @@ func ParseSchema2State(h *hschema.HyperSchema, db, env string) (*State, error) {
 			if l.Schema.Extras["table"] == nil {
 				continue
 			}
-			// links dont have JSON References, then use BasePath + href
+			// links don't have JSON References, then use BasePath + href
 			t := &Table{Id: "#/links" + l.Href + "/schema"}
 			err = t.ParseSchema2Table(l.Schema, h)
 			if err != nil {

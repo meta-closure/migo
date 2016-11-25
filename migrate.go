@@ -116,7 +116,7 @@ func (op Operation) Strings() string {
 }
 
 func (s Sql) Check() {
-	fmt.Println("\n---------- DATABASE MIGRRATION IS .......\n")
+	fmt.Println("\n---------- DATABASE MIGRATION IS .......\n")
 
 	fmt.Printf("DATABASE CONFIGURE: %s \n\n", s.DbConf.FormatDSN())
 	for _, op := range s.Operations {
@@ -735,7 +735,7 @@ func (s *Sql) Recovery(i int) error {
 		q, err := c.RecoveryQueryBuilder()
 		if err != nil {
 			fmt.Println(">>>>>>>> RECOVERY FAILED")
-			return errors.Wrapf(err, "Table: %s, Column: %s,s Query Build Failed", c.Table.Name, c.Column.Name)
+			return errors.Wrapf(err, "Table: %s, Column: %s, Query Build Failed", c.Table.Name, c.Column.Name)
 		}
 		if q == "" {
 			continue
@@ -750,7 +750,7 @@ func (s *Sql) Recovery(i int) error {
 		}
 	}
 
-	fmt.Println(">>>>>>>> REVOCERY SUCCEED")
+	fmt.Println(">>>>>>>> RECOVERY SUCCEED")
 	return nil
 }
 
@@ -767,7 +767,7 @@ func (s *Sql) Migrate() (int, error) {
 		q, err := c.QueryBuilder()
 		if err != nil {
 			fmt.Println(">>>>>>>> MIGRATION FAILED")
-			return 0, errors.Wrapf(err, "Table: %s, Column: %s,s Query Build Failed", c.Table.Name, c.Column.Name)
+			return 0, errors.Wrapf(err, "Table: %s, Column: %s, Query Build Failed", c.Table.Name, c.Column.Name)
 		}
 		qs = append(qs, q)
 	}
