@@ -83,40 +83,40 @@ func (op Operation) Strings() string {
 	s := "OPERATION >>>>>>>>>    "
 	switch op.OperationType {
 	case ADDTBL:
-		return s + fmt.Sprintf("ADD TABLE: [%s]\n", op.Table.Name)
+		return s + fmt.Sprintf("ADD TABLE: [%s]", op.Table.Name)
 	case CHANGETBL:
-		return s + fmt.Sprintf("CHANGE TABLE: [%s] -> [%s]\n", op.OldTable.Name, op.Table.Name)
+		return s + fmt.Sprintf("CHANGE TABLE: [%s] -> [%s]", op.OldTable.Name, op.Table.Name)
 	case DROPTBL:
-		return s + fmt.Sprintf("DROP TABLE: [%s]\n", op.Table.Name)
+		return s + fmt.Sprintf("DROP TABLE: [%s]", op.Table.Name)
 	case ADDCLM:
-		return s + fmt.Sprintf("ADD COLUMN TO [%s]: [%s]\n", op.Table.Name, op.Column.Name)
+		return s + fmt.Sprintf("ADD COLUMN TO [%s]: [%s]", op.Table.Name, op.Column.Name)
 	case DROPCLM:
-		return s + fmt.Sprintf("DROP COLUMN TO [%s]: [%s]\n", op.Table.Name, op.Column.Name)
+		return s + fmt.Sprintf("DROP COLUMN TO [%s]: [%s]", op.Table.Name, op.Column.Name)
 	case MODIFYCLM:
-		return s + fmt.Sprintf("MODIFY COLUMN TO [%s]: [%s]\n", op.Table.Name, op.Column.Name)
+		return s + fmt.Sprintf("MODIFY COLUMN TO [%s]: [%s]", op.Table.Name, op.Column.Name)
 	case MODIFYAICLM:
-		return s + fmt.Sprintf("MODIFY COLUMN TO CHANGE AUTO INCREMENT [%s]: [%s]\n", op.Table.Name, op.Column.Name)
+		return s + fmt.Sprintf("MODIFY COLUMN TO CHANGE AUTO INCREMENT [%s]: [%s]", op.Table.Name, op.Column.Name)
 	case CHANGECLM:
-		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]\n", op.Table.Name, op.OldColumn.Name, op.Column.Name)
+		return s + fmt.Sprintf("CHANGE COLUMN TO [%s]: [%s] -> [%s]", op.Table.Name, op.OldColumn.Name, op.Column.Name)
 	case ADDPK:
-		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]; [%s] -> %s\n", op.Table.Name, op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("ADD PRIMARY KEY TO [%s]; [%s] -> %s", op.Table.Name, op.Key.Name, op.Key.Target)
 	case DROPPK:
-		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s] -> %s\n", op.Table.Name, op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("DROP PRIMARY KEY TO [%s]: [%s] -> %s", op.Table.Name, op.Key.Name, op.Key.Target)
 	case ADDINDEX:
-		return s + fmt.Sprintf("ADD INDEX TO [%s]: %s\n", op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("ADD INDEX TO [%s]: %s", op.Key.Name, op.Key.Target)
 	case DROPINDEX:
-		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: %s\n", op.Key.Name, op.Key.Target)
+		return s + fmt.Sprintf("DROP INDEX KEY TO [%s]: %s", op.Key.Name, op.Key.Target)
 	case ADDFK:
-		return s + fmt.Sprintf("ADD FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table.Name, op.Column.Name, op.Column.FK.TargetColumn, op.Column.FK.TargetTable)
+		return s + fmt.Sprintf("ADD FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]", op.Table.Name, op.Column.Name, op.Column.FK.TargetColumn, op.Column.FK.TargetTable)
 	case DROPFK:
-		return s + fmt.Sprintf("DROP FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]\n", op.Table.Name, op.Column.Name, op.Column.FK.TargetColumn, op.Column.FK.TargetTable)
+		return s + fmt.Sprintf("DROP FOREIGN KEY TO [%s]: [%s] -> [%s] IN [%s]", op.Table.Name, op.Column.Name, op.Column.FK.TargetColumn, op.Column.FK.TargetTable)
 	default:
 		return s + fmt.Sprintln("CANT RECOGNIZE OPERATION")
 	}
 }
 
 func (s Sql) Check() {
-	fmt.Println("\n---------- DATABASE MIGRRATION IS .......\n\n")
+	fmt.Println("\n---------- DATABASE MIGRATION IS .......\n")
 
 	fmt.Printf("DATABASE CONFIGURE: %s \n\n", s.DbConf.FormatDSN())
 	for _, op := range s.Operations {
@@ -735,7 +735,7 @@ func (s *Sql) Recovery(i int) error {
 		q, err := c.RecoveryQueryBuilder()
 		if err != nil {
 			fmt.Println(">>>>>>>> RECOVERY FAILED")
-			return errors.Wrapf(err, "Table: %s, Column: %s,s Query Build Failed", c.Table.Name, c.Column.Name)
+			return errors.Wrapf(err, "Table: %s, Column: %s, Query Build Failed", c.Table.Name, c.Column.Name)
 		}
 		if q == "" {
 			continue
@@ -750,7 +750,7 @@ func (s *Sql) Recovery(i int) error {
 		}
 	}
 
-	fmt.Println(">>>>>>>> REVOCERY SUCCEED")
+	fmt.Println(">>>>>>>> RECOVERY SUCCEED")
 	return nil
 }
 
@@ -767,7 +767,7 @@ func (s *Sql) Migrate() (int, error) {
 		q, err := c.QueryBuilder()
 		if err != nil {
 			fmt.Println(">>>>>>>> MIGRATION FAILED")
-			return 0, errors.Wrapf(err, "Table: %s, Column: %s,s Query Build Failed", c.Table.Name, c.Column.Name)
+			return 0, errors.Wrapf(err, "Table: %s, Column: %s, Query Build Failed", c.Table.Name, c.Column.Name)
 		}
 		qs = append(qs, q)
 	}
