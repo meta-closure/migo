@@ -14,7 +14,7 @@ func SetupCmd() *cli.App {
 	app := cli.NewApp()
 
 	app.Name = "migo"
-	app.Usage = "database migrate from a JSON Schema file"
+	app.Usage = "Migrate database with a JSON Schema file"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
