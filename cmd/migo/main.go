@@ -58,10 +58,16 @@ func SetupCmd() *cli.App {
 			Action: Plan,
 		},
 		{
+			Name:   "wait",
+			Usage:  "wait for connecting to database",
+			Action: Wait,
+		},
+		{
 			Name:   "init",
 			Usage:  "create initial state file and create database if not exist",
 			Action: Init,
-		}, {
+		},
+		{
 			Name:   "seed",
 			Usage:  "insert seed record",
 			Action: Seed,
@@ -142,6 +148,14 @@ func seed(c *cli.Context) error {
 	return nil
 }
 
+func waitMigo(c *cli.Context) error {
+	db, env := c.GlobalString("database"), c.GlobalString("environment")
+	if err := migo.DbWait(db, env); err != nil {
+		return errors.Wrap(err, "Database wait")
+	}
+	return nil
+}
+
 func initMigo(c *cli.Context) error {
 	if err := migo.StateInit(); err != nil {
 		return errors.Wrap(err, "State init")
@@ -174,6 +188,14 @@ func Seed(c *cli.Context) error {
 	err := seed(c)
 	if err != nil {
 		return errors.Wrap(err, "SEED")
+	}
+	return nil
+}
+
+func Wait(c *cli.Context) error {
+	err := waitMigo(c)
+	if err != nil {
+		return errors.Wrap(err, "WAIT")
 	}
 	return nil
 }
