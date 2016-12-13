@@ -87,7 +87,7 @@ func (op Operation) Strings() string {
 	case CHANGETBL:
 		return s + fmt.Sprintf("CHANGE TABLE: [%s] -> [%s]", op.OldTable.Name, op.Table.Name)
 	case DROPTBL:
-		return s + fmt.Sprintf("DROP TABLE: [%s]", op.Table.Name)
+		return s + fmt.Sprintf("DROP TABLE: [%s]", op.OldTable.Name)
 	case ADDCLM:
 		return s + fmt.Sprintf("ADD COLUMN TO [%s]: [%s]", op.Table.Name, op.Column.Name)
 	case DROPCLM:
@@ -281,29 +281,13 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 	// Setting database connection configure
 	sql := NewSql(n.Db)
 	var op Operation
-	// add and change table check
-	for _, tab := range n.Table {
-		oldtab, ok := o.GetTable(tab.Id)
-
-		if ok != true {
-			op = GetTableOperation(oldtab, tab, ADDTBL)
-			sql.Operations = append(sql.Operations, op)
-			continue
-		}
-
-		if oldtab.Name != tab.Name {
-			fmt.Println(tab.Id, tab.Name)
-			op = GetTableOperation(oldtab, tab, CHANGETBL)
-			sql.Operations = append(sql.Operations, op)
-		}
-	}
 
 	// delete table and delete column check
 	for _, oldtab := range o.Table {
 
 		// drop table
 		tab, ok := n.GetTable(oldtab.Id)
-		if ok != true {
+		if !ok {
 			op = GetTableOperation(oldtab, tab, DROPTBL)
 			sql.Operations = append(sql.Operations, op)
 			continue
@@ -313,13 +297,29 @@ func (o *State) SQLBuilder(n *State) (*Sql, error) {
 			_, ok := tab.GetColumn(oldcol.Id)
 
 			// drop column
-			if ok != true {
+			if !ok {
 				op = GetColumnOperation(oldtab, tab, oldcol, oldcol, DROPCLM)
 				sql.Operations = append(sql.Operations, op)
 			}
 		}
-
 	}
+
+	// add and change table check
+	for _, tab := range n.Table {
+		oldtab, ok := o.GetTable(tab.Id)
+
+		if !ok {
+			op = GetTableOperation(oldtab, tab, ADDTBL)
+			sql.Operations = append(sql.Operations, op)
+			continue
+		}
+
+		if oldtab.Name != tab.Name {
+			op = GetTableOperation(oldtab, tab, CHANGETBL)
+			sql.Operations = append(sql.Operations, op)
+		}
+	}
+
 	// add and change column check
 	var aiop []Operation
 	for _, tab := range n.Table {
@@ -525,22 +525,24 @@ func (c Operation) GetColumnOption(aiflag bool) string {
 	if c.Column.UniqueFlag {
 		q += " UNIQUE"
 	}
-	if c.Column.AutoUpdateFlag {
-		q += " ON UPDATE CURRENT_TIMESTAMP"
-	}
 	if c.Column.Default != "" {
 		q += fmt.Sprintf(" DEFAULT '%s'", c.Column.Default)
 	}
-	if c.Column.Default == "" && c.Column.Type == "datetime" {
-		q += " DEFAULT CURRENT_TIMESTAMP"
 
+	if len(c.Column.Type) > 8 && c.Column.Type[:8] == "datetime" {
+		if c.Column.AutoUpdateFlag {
+			q += " ON UPDATE CURRENT_TIMESTAMP" + c.Column.Type[8:]
+		}
+		if c.Column.Default == "" {
+			q += " DEFAULT CURRENT_TIMESTAMP" + c.Column.Type[8:]
+		}
 	}
 	return q
 }
 
 func (c Operation) GetColumnRecoverOption(aiflag bool) string {
 	q := ""
-	if aiflag {
+	if !aiflag {
 		q += " AUTO_INCREMENT"
 	}
 	if c.OldColumn.NotNullFlag {
@@ -584,7 +586,7 @@ func (c Operation) QueryBuilder() (string, error) {
 		q = fmt.Sprintf("ALTER TABLE %s RENAME %s", c.OldTable.Name, c.Table.Name)
 		return q, nil
 	case DROPTBL:
-		q = fmt.Sprintf("DROP TABLE %s", c.Table.Name)
+		q = fmt.Sprintf("DROP TABLE %s", c.OldTable.Name)
 		return q, nil
 	case ADDCLM:
 		q += fmt.Sprintf("ADD COLUMN %s %s", c.Column.Name, c.Column.Type)
