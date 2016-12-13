@@ -525,22 +525,24 @@ func (c Operation) GetColumnOption(aiflag bool) string {
 	if c.Column.UniqueFlag {
 		q += " UNIQUE"
 	}
-	if c.Column.AutoUpdateFlag {
-		q += " ON UPDATE CURRENT_TIMESTAMP"
-	}
 	if c.Column.Default != "" {
 		q += fmt.Sprintf(" DEFAULT '%s'", c.Column.Default)
 	}
-	if c.Column.Default == "" && c.Column.Type == "datetime" {
-		q += " DEFAULT CURRENT_TIMESTAMP"
 
+	if len(c.Column.Type) > 8 && c.Column.Type[:8] == "datetime" {
+		if c.Column.AutoUpdateFlag {
+			q += " ON UPDATE CURRENT_TIMESTAMP" + c.Column.Type[8:]
+		}
+		if c.Column.Default == "" {
+			q += " DEFAULT CURRENT_TIMESTAMP" + c.Column.Type[8:]
+		}
 	}
 	return q
 }
 
 func (c Operation) GetColumnRecoverOption(aiflag bool) string {
 	q := ""
-	if aiflag {
+	if !aiflag {
 		q += " AUTO_INCREMENT"
 	}
 	if c.OldColumn.NotNullFlag {
