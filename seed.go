@@ -3,127 +3,157 @@ package migo
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"sort"
+	"strings"
+
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/pkg/errors"
+	"github.com/urfave/cli"
 )
 
 const (
-	offFKCheck = "SET FOREIGN_KEY_CHECKS = 0"
-	onFKCheck  = "SET FOREIGN_KEY_CHECKS = 1"
+	setForeignKeyOff = "SET FOREIGN_KEY_CHECKS=0"
+	setForeignKeyOn  = "SET FOREIGN_KEY_CHECKS=1"
 )
 
-func GetDSN(dbpath, env string) (string, error) {
-	dbconf, err := NewDb(dbpath, env)
-	if err != nil {
-		return "", errors.Wrap(err, "Parse db configue")
-	}
-	sqlconf := NewSql(*dbconf)
-	return sqlconf.DbConf.FormatDSN(), nil
+type Records struct {
+	Table string
+	Items []map[string]interface{}
 }
 
-func GetInsertQuery(table string, data interface{}) (string, error) {
-	q := fmt.Sprintf("INSERT INTO %s ", table)
-
-	l, ok := data.(map[string]interface{})
+func NewRecords(table string, item interface{}) (Records, error) {
+	r := Records{Table: table}
+	qs, ok := item.([]interface{})
 	if !ok {
-		return q, errors.Wrapf(ErrInvalidTable, "%+v", data)
+		return Records{}, errors.New("fail to type convert from interface{} to []interface{}")
 	}
-	var key, val string
-	for k, v := range l {
-		key += fmt.Sprintf("%s, ", k)
-		switch v := v.(type) {
-		default:
-			val += fmt.Sprintf("'%v', ", v)
-		case string:
-			val += fmt.Sprintf("'%s', ", v)
-		}
-	}
-	q += fmt.Sprintf("(%s) VALUES (%s)", key[0:len(key)-2], val[0:len(val)-2])
-	return q, nil
-}
 
-func GetInsertQueries(y map[string]interface{}) ([]string, error) {
-	qs := []string{offFKCheck}
-	for table, data := range y {
-		datalist, ok := data.([]interface{})
+	m := make([]map[string]interface{}, len(qs))
+	for i, q := range qs {
+		item, ok := q.(map[string]interface{})
 		if !ok {
-			return nil, errors.Wrapf(ErrInvalidTable, "%+v", data)
+			return Records{}, errors.New("fail to type convert from interface{} to map[string]interface{}")
 		}
-		for _, d := range datalist {
-			q, err := GetInsertQuery(table, d)
-			if err != nil {
-				return nil, errors.Wrap(err, "Query build failed")
-			}
-			qs = append(qs, q)
-		}
+		m[i] = item
 	}
-	qs = append(qs, onFKCheck)
-	return qs, nil
+	r.Items = m
+	return r, nil
 }
 
-func GetDeleteQueries(y map[string]interface{}) ([]string, error) {
-
-	qs := []string{offFKCheck}
-	for table, _ := range y {
-		qs = append(qs, fmt.Sprintf("TRUNCATE TABLE %s", table))
-	}
-	qs = append(qs, onFKCheck)
-	return qs, nil
-}
-
-func Exec(qs []string, dsn string) error {
-	db, err := sql.Open("mysql", dsn)
+func Seed(c *cli.Context) error {
+	op, err := NewSeedOption(c)
 	if err != nil {
-		return errors.Wrap(err, "Create db connection")
+		return errors.Wrap(err, "parsing option")
 	}
-	defer db.Close()
 
-	for _, q := range qs {
-		_, err := db.Exec(q)
+	b, err := ioutil.ReadFile(op.RecordFilePath)
+	if err != nil {
+		return errors.Wrap(err, "opening seed file")
+	}
+
+	m := map[string]interface{}{}
+	err = yaml.Unmarshal(b, &m)
+	if err != nil {
+		return errors.Wrap(err, "reading seed file")
+	}
+
+	rs := []Records{}
+	for k, v := range m {
+		r, err := NewRecords(k, v)
 		if err != nil {
-			return errors.Wrapf(err, "Query execute error: %s", q)
+			return errors.Wrapf(err, "parsing %s table record", k)
+		}
+		rs = append(rs, r)
+	}
+
+	db, err := NewDB(op.ConfigFilePath, op.Environment)
+	if err != nil {
+		return err
+	}
+
+	return db.seed(rs)
+}
+
+func (db DB) seed(requests []Records) error {
+	m := NewMySQLConfig(db)
+	mysql, err := sql.Open("mysql", m.FormatDSN())
+	if err != nil {
+		return errors.Wrap(err, "create mysql connection")
+	}
+	defer mysql.Close()
+
+	if _, err := mysql.Exec(setForeignKeyOff); err != nil {
+		return errors.Wrap(err, "drop foreign key check")
+	}
+
+	defer func() {
+		if _, err := mysql.Exec(setForeignKeyOn); err != nil {
+			fmt.Println(err, "add foreign key check")
+		}
+	}()
+
+	for _, r := range requests {
+		if _, err := mysql.Exec(r.Exec()); err != nil {
+			return errors.Wrapf(err, "fail to insert request: `%s`", r.Exec())
 		}
 	}
+
 	return nil
 }
+func (r Records) keys() []string {
+	m := map[string]bool{}
+	for _, record := range r.Items {
+		for k := range record {
+			if !m[k] {
+				m[k] = true
+			}
+		}
+	}
 
-func InsertRecords(y map[string]interface{}, dsn string) error {
-	qs, err := GetInsertQueries(y)
-	if err != nil {
-		return err
+	keys := make([]string, len(m))
+	count := 0
+	for k := range m {
+		keys[count] = k
+		count++
 	}
-	if err := Exec(qs, dsn); err != nil {
-		return errors.Wrap(err, "insert records")
-	}
-	return nil
+	sort.Strings(keys)
+	return keys
 }
 
-func DropRecords(y map[string]interface{}, dsn string) error {
-	qs, err := GetDeleteQueries(y)
-	if err != nil {
-		return err
+func fillWhenEmpty(list []string, target map[string]interface{}, fill string) []string {
+	m := make([]string, len(list))
+	for i, key := range list {
+		if target[key] == nil {
+			m[i] = fill
+			continue
+		}
+		m[i] = fmt.Sprintf("'%v'", target[key])
 	}
-	if err := Exec(qs, dsn); err != nil {
-		return errors.Wrap(err, "truncate records")
-	}
-	return nil
+
+	return m
 }
 
-func Seed(path, dbpath, env string) error {
-	dsn, err := GetDSN(dbpath, env)
-	if err != nil {
-		return err
+func join(list []string, prefix, suffix string) string {
+	return prefix + strings.Join(list, ",") + suffix
+}
+
+func request(list []string, target map[string]interface{}) string {
+	return join(fillWhenEmpty(list, target, "NULL"), "(", ")")
+}
+
+func (r Records) Exec() string {
+	if r.Table == "" || len(r.Items) == 0 {
+		return ""
 	}
 
-	y, err := ParseYAML(path)
-	if err != nil {
-		return err
+	m := make([]string, len(r.Items))
+	keys := r.keys()
+	for i, item := range r.Items {
+		m[i] = request(keys, item)
 	}
 
-	if err := InsertRecords(y, dsn); err != nil {
-		return err
-	}
-
-	return nil
-
+	return fmt.Sprintf("INSERT INTO `%s` %s VALUES %s",
+		r.Table, join(keys, "(", ")"), strings.Join(m, ","))
 }

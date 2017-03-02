@@ -1,8 +1,11 @@
 package migo
 
 import (
+	"fmt"
 	"io/ioutil"
 	"time"
+
+	"encoding/json"
 
 	"github.com/ghodss/yaml"
 	"github.com/lestrrat/go-jshschema"
@@ -11,330 +14,333 @@ import (
 )
 
 type State struct {
-	Db       Db
-	Table    []Table
+	DB       DB
+	Tables   []Table
 	UpdateAt time.Time
-}
-
-type Db struct {
-	User   string
-	Passwd string
-	Addr   string
-	DBName string
 }
 
 type Table struct {
 	Id         string
 	Name       string
+	ForeignKey []ForeignKey
 	PrimaryKey []Key
 	Index      []Key
 	Column     []Column
 }
 
-func StateNew() *State {
-	return &State{
+type Key struct {
+	Target []string
+	Name   string
+}
+
+type ForeignKey struct {
+	Name          string
+	SourceTable   string
+	SourceColumn  string
+	TargetTable   string
+	TargetColumn  string
+	UpdateCascade bool
+	DeleteCascade bool
+}
+
+type Column struct {
+	Id            string
+	BeforeName    string
+	Name          string
+	Type          string
+	Unique        bool
+	AutoIncrement bool
+	AutoUpdate    bool
+	NotNull       bool
+	Default       string
+}
+
+func NewState() State {
+	return State{
 		UpdateAt: time.Now(),
 	}
 }
 
-func ParseState(s string) (*State, error) {
-	b, err := ioutil.ReadFile(s)
+func readYAMLFormatSchema(h *hschema.HyperSchema, filePath string) error {
+	b, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "YAML file open error")
+		return errors.Wrap(err, "YAML file open error")
 	}
 
-	st := StateNew()
-	if len(b) == 0 {
-		return st, nil
-	}
-	err = yaml.Unmarshal(b, st)
+	y := map[string]interface{}{}
+	err = yaml.Unmarshal(b, &y)
 	if err != nil {
-		return nil, errors.Wrap(err, "YAML file parse error")
+		return errors.Wrap(err, "YAML file parse error")
 	}
 
-	return st, nil
-}
-
-func ParseSchemaYAML(h *hschema.HyperSchema, s string) error {
-	y, err := ParseYAML(s)
-	if err != nil {
-		return err
-	}
 	h.Extract(y)
 	return nil
 }
 
-func ParseYAML(s string) (map[string]interface{}, error) {
-	y := &map[string]interface{}{}
-	b, err := ioutil.ReadFile(s)
-	if err != nil {
-		return *y, errors.Wrap(err, "YAML file open error")
-	}
-	err = yaml.Unmarshal(b, y)
-	if err != nil {
-		return *y, errors.Wrap(err, "YAML file parse error")
-	}
-	return *y, nil
-}
-
-func ParseSchemaJSON(h *hschema.HyperSchema, s string) error {
-	hs, err := hschema.ReadFile(s)
+func readJSONFormatSchema(h *hschema.HyperSchema, filePath string) error {
+	h, err := hschema.ReadFile(filePath)
 	if err != nil {
 		return errors.Wrap(err, "JSON file parse error")
 	}
-	h = hs
 	return nil
 }
 
-func NewDb(dbpath, env string) (*Db, error) {
-	conf := &Db{}
-	y, err := ParseYAML(dbpath)
+func (e Environment) hasNotEnv(env string) bool {
+	for k := range e.Config {
+		if k == env {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Column) read(s schema.Schema) error {
+	if hasNotColumn(s) {
+		return nil
+	}
+
+	b, err := json.Marshal(s.Extras["column"])
 	if err != nil {
-		return conf, errors.New("Parse YAML")
+		return errors.Wrap(err, "convert to json")
 	}
-	if y[env] == nil {
-		return conf, errors.New("Env not exist in db config")
-	}
-	conn := y[env].(map[string]interface{})
-	for k, v := range conn {
-		switch k {
-		case "user", "passwd", "addr", "dbname":
-			st, ok := v.(string)
-			if ok != true {
-				return conf, errors.Wrap(ErrTypeInvalid, k)
-			}
-			if k == "user" {
-				conf.User = st
-			} else if k == "passwd" {
-				conf.Passwd = st
-			} else if k == "addr" {
-				conf.Addr = st
-			} else {
-				conf.DBName = st
-			}
-		default:
-			return nil, errors.Wrap(ErrInvalidDbColumn, k)
-		}
-	}
-	return conf, nil
-}
-
-func (c *Column) ParseSchema2Column(s *schema.Schema, h *hschema.HyperSchema) error {
-	col, ok := s.Extras["column"].(map[string]interface{})
-	if ok != true {
-		return ErrTypeInvalid
-	}
-
-	if col["name"] == nil || col["type"] == nil {
-		return errors.Wrap(ErrEmpty, "name or type")
-	}
-
-	for k, v := range col {
-		switch k {
-		case "name", "type":
-			st, ok := v.(string)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			if st == "" {
-				return errors.Wrap(ErrEmpty, k)
-			}
-			if k == "name" {
-				c.Name = st
-			} else {
-				c.Type = st
-			}
-		case "default":
-			st, ok := v.(string)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			c.Default = st
-		case "unique", "auto_increment", "not_null", "auto_update", "update_cascade", "delete_cascade":
-			b, ok := v.(bool)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			if k == "unique" {
-				c.UniqueFlag = b
-			} else if k == "auto_increment" {
-				c.AutoIncrementFlag = b
-			} else if k == "not_null" {
-				c.NotNullFlag = b
-			} else if k == "auto_update" {
-				c.AutoUpdateFlag = b
-			}
-		case "foreign_key":
-			fk, ok := v.(map[string]interface{})
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			for key, val := range fk {
-				switch key {
-				case "name", "target_table", "target_column":
-					st, ok := val.(string)
-					if !ok {
-						return errors.Wrapf(ErrEmpty, "foreign key: %+v", fk)
-					}
-					if key == "name" {
-						c.FK.Name = st
-					} else if key == "target_table" {
-						c.FK.TargetTable = st
-					} else if key == "target_column" {
-						c.FK.TargetColumn = st
-					}
-				case "update_cascade", "delete_cascade":
-					b, ok := val.(bool)
-					if !ok {
-						return errors.Wrapf(ErrEmpty, "foreign key: %+v", fk)
-					}
-					if key == "update_cascade" {
-						c.FK.UpdateCascade = b
-					} else if key == "delete_cascade" {
-						c.FK.DeleteCascade = b
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (t *Table) ParseSchema2Table(s *schema.Schema, h *hschema.HyperSchema) error {
-
-	table, ok := s.Extras["table"].(map[string]interface{})
-	if ok != true {
-		return ErrTypeInvalid
-	}
-
-	if table["name"] == nil {
-		return errors.Wrap(ErrEmpty, "name")
-	}
-
-	for k, v := range table {
-		switch k {
-		case "primary_key", "index":
-			if v == nil {
-				return errors.Wrap(ErrEmpty, k)
-			}
-
-			l, ok := v.(map[string]interface{})
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-
-			ks := []Key{}
-			for name, keys := range l {
-				ps := []string{}
-
-				keylist, ok := keys.([]interface{})
-				if ok != true {
-					return errors.Wrap(ErrTypeInvalid, k)
-				}
-				for _, key := range keylist {
-					p, ok := key.(string)
-					if ok != true {
-						return errors.Wrap(ErrTypeInvalid, k)
-					}
-					ps = append(ps, p)
-				}
-				ks = append(ks, Key{Name: name, Target: ps})
-			}
-			if k == "primary_key" {
-				t.PrimaryKey = ks
-			} else {
-				t.Index = ks
-			}
-		case "name":
-			if v == nil {
-				return errors.Wrap(ErrEmpty, k)
-			}
-			st, ok := v.(string)
-			if ok != true {
-				return errors.Wrap(ErrTypeInvalid, k)
-			}
-			t.Name = st
-		}
-	}
-
-	for k, v := range s.Properties {
-		if v.Extras["column"] == nil {
-			continue
-		}
-
-		c := &Column{Id: k}
-		err := c.ParseSchema2Column(v, h)
-		if err != nil {
-			return errors.Wrapf(err, "Parse %s column error", k)
-		}
-		t.Column = append(t.Column, *c)
-
+	if err := json.Unmarshal(b, c); err != nil {
+		return errors.Wrap(err, "convert to column")
 	}
 
 	return nil
 }
 
-func ParseSchema2State(h *hschema.HyperSchema, db, env string) (*State, error) {
-	s := StateNew()
-	conf, err := NewDb(db, env)
+func definitonsID(key string) string {
+	return fmt.Sprintf("#/definitions/%s", key)
+}
+func propertiesID(key string) string {
+	return fmt.Sprintf("#/properties/$s", key)
+}
+
+func hasNotTable(s *schema.Schema) bool {
+	if s.Extras["table"] != nil {
+		return false
+	}
+	return true
+}
+
+func NewTable(id string) *Table {
+	return &Table{Id: id}
+}
+
+func (t *Table) setName(i interface{}) error {
+	s, ok := i.(string)
+	if !ok {
+		return errors.New("given type is not string")
+	}
+	t.Name = s
+	return nil
+}
+
+func hasNotColumn(s schema.Schema) bool {
+	if s.Extras["column"] != nil {
+		return true
+	}
+	return false
+}
+
+func NewColumn(id string) Column {
+	return Column{Id: id}
+}
+
+func hasNotForeignKey(s schema.Schema) bool {
+	if hasNotColumn(s) {
+		return false
+	}
+
+	m, ok := s.Extras["column"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	if m["foreign_key"] != nil {
+		return true
+	}
+	return false
+}
+
+func NewForeignKey(t string) ForeignKey {
+	return ForeignKey{SourceTable: t}
+}
+
+func (fk *ForeignKey) read(s schema.Schema) error {
+	if hasNotForeignKey(s) {
+		return errors.New("column not found")
+	}
+
+	m, ok := s.Extras["column"].(map[string]interface{})
+	if !ok {
+		return errors.New("fail to convert type from column")
+	}
+
+	k := ForeignKey{}
+	b, err := json.Marshal(m["foreign_key"])
 	if err != nil {
-		return nil, errors.Wrap(err, "Parsing Db parameter: ")
+		return err
 	}
-	s.Db = *conf
-	for k, v := range h.Definitions {
-		if v.Extras["table"] == nil {
+	if err := json.Unmarshal(b, &k); err != nil {
+		return err
+	}
+
+	fk = &k
+	return nil
+}
+
+func stringList(i interface{}) ([]string, error) {
+	m, ok := i.([]interface{})
+	if !ok {
+		return nil, errors.New("fail to convert []interface{} type")
+	}
+	list := []string{}
+	for _, v := range m {
+		s, ok := v.(string)
+		if !ok {
+			return nil, errors.New("fail to convert string type")
+		}
+		list = append(list, s)
+	}
+
+	return list, nil
+}
+
+func NewKey(s string) Key {
+	return Key{Name: s}
+}
+
+func readKeys(i interface{}) ([]Key, error) {
+	m, ok := i.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("fail to convert type to map[string]interface{}")
+	}
+
+	keys := []Key{}
+	for k, v := range m {
+		var err error
+		key := NewKey(k)
+		key.Target, err = stringList(v)
+		if err != nil {
+			return nil, errors.Wrap(err, "generating keys")
+		}
+
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+func (t Table) selectPrimaryKey(m map[string]interface{}) ([]Key, error) {
+	if m["primary_key"] == nil {
+		return nil, nil
+	}
+	return readKeys(m["primary_key"])
+}
+
+func (t Table) selectIndex(m map[string]interface{}) ([]Key, error) {
+	if m["index"] == nil {
+		return nil, nil
+	}
+	return readKeys(m["index"])
+}
+
+func (t *Table) read(root *hschema.HyperSchema, schema *schema.Schema) error {
+	if hasNotTable(schema) {
+		return nil
+	}
+	m, ok := schema.Extras["table"].(map[string]interface{})
+	if !ok {
+		return errors.New("convert from interface{} to map[string]interface{}")
+	}
+	if err := t.setName(m["name"]); err != nil {
+		return errors.Wrap(err, "setting name to table")
+	}
+
+	for k, s := range schema.Properties {
+		if hasNotColumn(*s) {
 			continue
 		}
-		t := &Table{Id: "#/definitions/" + k}
-		err = t.ParseSchema2Table(v, h)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Parsing %s table", t.Id)
-
+		c := NewColumn(k)
+		if err := c.read(*s); err != nil {
+			return errors.Wrap(err, "reading columns")
 		}
-		s.Table = append(s.Table, *t)
-	}
+		t.Column = append(t.Column, c)
 
-	for k, v := range h.Properties {
-		if v.Extras["table"] == nil {
+		if hasNotForeignKey(*s) {
 			continue
 		}
-		t := &Table{Id: "#/properties/" + k}
-		err = t.ParseSchema2Table(v, h)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Parsing %s table", t.Id)
-
+		fk := NewForeignKey(t.Name)
+		if err := fk.read(*s); err != nil {
+			return errors.Wrap(err, "reading foreing key")
 		}
-		s.Table = append(s.Table, *t)
+		t.ForeignKey = append(t.ForeignKey, fk)
 	}
 
-	for _, l := range h.Links {
-		if l.Schema != nil {
-			if l.Schema.Extras["table"] == nil {
-				continue
-			}
-			// links don't have JSON References, then use BasePath + href
-			t := &Table{Id: "#/links" + l.Href + "/schema"}
-			err = t.ParseSchema2Table(l.Schema, h)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Parsing %s table", t.Id)
+	var err error
+	t.PrimaryKey, err = t.selectPrimaryKey(m)
+	if err != nil {
+		return errors.Wrap(err, "reading primary key")
+	}
+	t.Index, err = t.selectIndex(m)
+	if err != nil {
+		return errors.Wrap(err, "setting index")
+	}
+	return nil
+}
 
-			}
-			s.Table = append(s.Table, *t)
-
+func NewStateFromSchema(schema *hschema.HyperSchema) (State, error) {
+	var err error
+	s := NewState()
+	for k, v := range schema.Definitions {
+		if hasNotTable(v) {
+			continue
 		}
-
-		if l.TargetSchema != nil {
-			if l.TargetSchema.Extras["table"] == nil {
-				continue
-			}
-			t := &Table{Id: "#/links" + l.Href + "/target_schema"}
-			err = t.ParseSchema2Table(l.TargetSchema, h)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Parsing %s table", t.Name)
-
-			}
-			s.Table = append(s.Table, *t)
+		t := NewTable(definitonsID(k))
+		if err := t.read(schema, v); err != nil {
+			return s, errors.Wrap(err, "in definitions")
 		}
+		s.Tables = append(s.Tables, *t)
+	}
+
+	for k, v := range schema.Properties {
+		if hasNotTable(v) {
+			continue
+		}
+		t := NewTable(propertiesID(k))
+		if t.read(schema, v); err != nil {
+			return s, errors.Wrap(err, "in properties")
+		}
+		s.Tables = append(s.Tables, *t)
 	}
 	return s, err
+}
+
+func NewStateFromYAML(filePath string) (State, error) {
+	s := NewState()
+
+	b, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return s, err
+	}
+
+	if err = yaml.Unmarshal(b, s); err != nil {
+		return s, err
+	}
+
+	return s, nil
+}
+
+func (s State) save(filePath string) error {
+	b, err := yaml.Marshal(s)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(filePath, b, 0777)
+	if err != nil {
+		return err
+	}
+	return nil
 }
