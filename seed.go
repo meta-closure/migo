@@ -7,10 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
-
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
 )
 
 const (
@@ -42,11 +40,7 @@ func NewRecords(table string, item interface{}) (Records, error) {
 	return r, nil
 }
 
-func Seed(c *cli.Context) error {
-	op, err := NewSeedOption(c)
-	if err != nil {
-		return errors.Wrap(err, "parsing option")
-	}
+func Seed(op SeedOption) error {
 
 	b, err := ioutil.ReadFile(op.RecordFilePath)
 	if err != nil {

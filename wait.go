@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
 )
 
 const (
@@ -20,12 +19,7 @@ func (l Logger) Print(v ...interface{}) {
 	// do nothing
 }
 
-func Wait(c *cli.Context) error {
-	op, err := NewWaitOption(c)
-	if err != nil {
-		return errors.Wrap(err, "parsing option")
-	}
-
+func Wait(op WaitOption) error {
 	db, err := NewDB(op.ConfigFilePath, op.Environment)
 	if err != nil {
 		return errors.Wrap(err, "Parse db config")

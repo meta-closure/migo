@@ -5,19 +5,13 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
 )
 
 const (
 	defaultStateFilePath = "./database_state.yml"
 )
 
-func Setup(c *cli.Context) error {
-	op, err := NewInitOption(c)
-	if err != nil {
-		return errors.Wrap(err, "parsing option")
-	}
-
+func Setup(op InitOption) error {
 	if err := NewState().save(defaultStateFilePath); err != nil {
 		return errors.Wrap(err, "creating initial state file")
 	}

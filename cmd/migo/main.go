@@ -77,35 +77,60 @@ func SetupCmd() *cli.App {
 }
 
 func Seed(c *cli.Context) error {
-	if err := migo.Seed(c); err != nil {
+	op, err := migo.NewSeedOption(c)
+	if err != nil {
+		return errors.Wrap(err, "parsing option")
+	}
+
+	if err := migo.Seed(op); err != nil {
 		return errors.Wrap(err, "SEED")
 	}
 	return nil
 }
 
 func Run(c *cli.Context) error {
-	if err := migo.Run(c); err != nil {
+	op, err := migo.NewMigrateOption(c)
+	if err != nil {
+		return errors.Wrap(err, "parsing option")
+	}
+
+	if err := migo.Run(op); err != nil {
 		return errors.Wrap(err, "RUN")
 	}
 	return nil
 }
 
 func Plan(c *cli.Context) error {
-	if err := migo.Plan(c); err != nil {
+	op, err := migo.NewMigrateOption(c)
+	if err != nil {
+		return errors.Wrap(err, "parsing option")
+	}
+
+	if err := migo.Plan(op); err != nil {
 		return errors.Wrap(err, "PLAN")
 	}
 	return nil
 }
 
 func Wait(c *cli.Context) error {
-	if err := migo.Wait(c); err != nil {
+	op, err := migo.NewWaitOption(c)
+	if err != nil {
+		return errors.Wrap(err, "parsing option")
+	}
+
+	if err := migo.Wait(op); err != nil {
 		return errors.Wrap(err, "WAIT")
 	}
 	return nil
 }
 
 func Init(c *cli.Context) error {
-	if err := migo.Setup(c); err != nil {
+	op, err := migo.NewInitOption(c)
+	if err != nil {
+		return errors.Wrap(err, "parsing option")
+	}
+
+	if err := migo.Setup(op); err != nil {
 		return errors.Wrap(err, "INIT")
 	}
 	return nil

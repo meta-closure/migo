@@ -6,7 +6,6 @@ import (
 
 	hschema "github.com/lestrrat/go-jshschema"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
 )
 
 func (op MigrateOption) isYAMLFormat() bool {
@@ -36,12 +35,7 @@ func ReadSchema(op MigrateOption) (*hschema.HyperSchema, error) {
 	return nil, NewMigrateOptionInvalidError()
 }
 
-func Plan(c *cli.Context) error {
-	op, err := NewMigrateOption(c)
-	if err != nil {
-		return err
-	}
-
+func Plan(op MigrateOption) error {
 	db, err := NewDB(op.ConfigFilePath, op.Environment)
 	if err != nil {
 		return err
@@ -71,12 +65,7 @@ func Plan(c *cli.Context) error {
 	return nil
 }
 
-func Run(c *cli.Context) error {
-	op, err := NewMigrateOption(c)
-	if err != nil {
-		return err
-	}
-
+func Run(op MigrateOption) error {
 	db, err := NewDB(op.ConfigFilePath, op.Environment)
 	if err != nil {
 		return err

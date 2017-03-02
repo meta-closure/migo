@@ -148,6 +148,7 @@ func NewColumn(id string) Column {
 	return Column{Id: id}
 }
 
+
 func hasNotForeignKey(s schema.Schema) bool {
 	if hasNotColumn(s) {
 		return false
