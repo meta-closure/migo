@@ -2,7 +2,6 @@ package migo
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
@@ -16,105 +15,6 @@ func NewMySQLConfig(db DB) mysql.Config {
 		Passwd: db.Passwd,
 		DBName: db.DBName,
 	}
-}
-
-func (s State) selectTableWithID(id string) (Table, error) {
-	for _, t := range s.Tables {
-		if t.Id == id {
-			return t, nil
-		}
-	}
-	return Table{}, errors.New("table not found")
-}
-
-func (s State) hasTable(t Table) bool {
-	if _, err := s.selectTableWithID(t.Id); err != nil {
-		return false
-	}
-	return true
-}
-
-func (s State) selectTablesNotIn(target State) ([]Table, error) {
-	filterd := []Table{}
-	for _, t := range s.Tables {
-		if !target.hasTable(t) {
-			filterd = append(filterd, t)
-		}
-	}
-
-	return filterd, nil
-}
-
-func (s State) selectTablesIn(target State) ([]Table, error) {
-	filterd := []Table{}
-	for _, t := range s.Tables {
-		if target.hasTable(t) {
-			filterd = append(filterd, t)
-		}
-	}
-	return filterd, nil
-}
-
-func (t Table) selectIndexWithName(s string) (Key, error) {
-	for _, k := range t.Index {
-		if k.Name == s {
-			return k, nil
-		}
-	}
-	return Key{}, errors.New("index not found")
-}
-
-func (t Table) hasIndex(k Key) bool {
-	if _, err := t.selectIndexWithName(k.Name); err != nil {
-		return false
-	}
-	return true
-}
-
-func (t Table) selectPrimaryKeyWithName(s string) (Key, error) {
-	for _, k := range t.PrimaryKey {
-		if k.Name == s {
-			return k, nil
-		}
-	}
-	return Key{}, errors.New("primary key not found")
-}
-
-func (t Table) hasPrimaryKey(k Key) bool {
-	if _, err := t.selectPrimaryKeyWithName(k.Name); err != nil {
-		return false
-	}
-	return true
-}
-
-func (t Table) selectColumnWithID(id string) (Column, error) {
-	for _, c := range t.Column {
-		if c.Id == id {
-			return c, nil
-		}
-	}
-	return Column{}, errors.New("column not found")
-}
-
-func (t Table) hasColumn(c Column) bool {
-	if _, err := t.selectColumnWithID(c.Id); err != nil {
-		return false
-	}
-	return true
-}
-
-func (k Key) isUpdatedFrom(target Key) (bool, error) {
-	if k.Name != target.Name {
-		return false, errors.New("the target key name is wrong")
-	}
-	return !reflect.DeepEqual(k, target), nil
-}
-
-func (c Column) isUpdatedFrom(target Column) (bool, error) {
-	if c.Id != target.Id {
-		return false, errors.New("the target column ID is wrong")
-	}
-	return !reflect.DeepEqual(c, target), nil
 }
 
 func (ops *Operations) UpdateTable(currentTable, newTable Table) error {
