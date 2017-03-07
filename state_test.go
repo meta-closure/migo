@@ -279,7 +279,7 @@ func TestNewStateFromSchema(t *testing.T) {
 			continue
 		}
 
-		c.expectedState.UpdateAt = s.UpdateAt
+		c.expectedState.UpdatedAt = s.UpdatedAt
 		for i := range c.expectedState.ForeignKey {
 			s.ForeignKey[i].Raw = c.expectedState.ForeignKey[i].Raw
 		}
