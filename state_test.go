@@ -119,6 +119,8 @@ func TestNewStateFromSchema(t *testing.T) {
 				},
 				ForeignKey: []migo.ForeignKey{
 					{
+						Name:          "fk_test",
+						DeleteCascade: true,
 						SourceColumn: migo.Column{
 							Name:    "source_column",
 							Id:      "source_column",
@@ -284,7 +286,7 @@ func TestNewStateFromSchema(t *testing.T) {
 			s.ForeignKey[i].Raw = c.expectedState.ForeignKey[i].Raw
 		}
 		if !reflect.DeepEqual(c.expectedState, s) {
-			t.Errorf("in %s, expected state is %+v, but actual %+v", c.spec, c.expectedState, s)
+			t.Errorf("in %s, expected state is %+v\n, but actual %+v\n", c.spec, c.expectedState, s)
 		}
 	}
 }

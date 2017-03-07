@@ -259,7 +259,7 @@ func TestCreateTables(t *testing.T) {
 				},
 			},
 			expectedQueries: []string{
-				"CREATE TABLE table1 (column1 type1)ENGINE=innoDB",
+				"CREATE TABLE table1 (column1 type1,INDEX test_index (column1))ENGINE=innoDB",
 			},
 			isSuccess: true,
 		},
