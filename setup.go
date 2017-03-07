@@ -12,20 +12,22 @@ const (
 )
 
 func Setup(op InitOption) error {
-	if err := NewState().save(defaultStateFilePath); err != nil {
-		return errors.Wrap(err, "creating initial state file")
-	}
-
+	var err error
+	s := NewState()
 	db, err := NewDB(op.ConfigFilePath, op.Environment)
 	if err != nil {
 		return errors.Wrap(err, "parsing db config")
 	}
-	return db.setup()
+	s.DB = *db
+	if err := s.save(defaultStateFilePath); err != nil {
+		return errors.Wrap(err, "creating initial state file")
+	}
+
+	return s.DB.setup()
 }
 
 func (db DB) setup() error {
-	m := NewMySQLConfig(db)
-	mysql, err := sql.Open("mysql", m.FormatDSN())
+	mysql, err := sql.Open("mysql", db.FormatDBUnspecifiedDSN())
 	if err != nil {
 		return errors.Wrap(err, "create mysql connection")
 	}

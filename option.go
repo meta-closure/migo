@@ -117,21 +117,21 @@ type MigrateOption struct {
 	FormatType     string
 	ConfigFilePath string
 	StateFilePath  string
-	SchemaFile     string
+	SchemaFilePath string
 	Environment    string
 }
 
 func (op *MigrateOption) SetJSONFormatSchema(schema string) {
-	op.SchemaFile = schema
+	op.SchemaFilePath = schema
 	op.FormatType = "json"
 }
 
 func (op *MigrateOption) SetYAMLFormatSchema(schema string) {
-	op.SchemaFile = schema
+	op.SchemaFilePath = schema
 	op.FormatType = "yaml"
 }
 
-func (op *MigrateOption) SetState(state string) error {
+func (op *MigrateOption) SetStateFilePath(state string) error {
 	if state == "" {
 		return NewOptionEmptyError("state")
 	}
@@ -174,7 +174,7 @@ func NewMigrateOption(c *cli.Context) (MigrateOption, error) {
 	}
 
 	state, db, env := c.GlobalString("state"), c.GlobalString("database"), c.GlobalString("environment")
-	if err := op.SetState(state); err != nil {
+	if err := op.SetStateFilePath(state); err != nil {
 		return op, err
 	}
 	if err := op.SetConfigFilePath(db); err != nil {

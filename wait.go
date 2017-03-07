@@ -28,14 +28,11 @@ func Wait(op WaitOption) error {
 }
 
 func (db DB) wait() error {
-	db.DBName = ""
-
 	if err := mysql.SetLogger(Logger{}); err != nil {
 		return errors.Wrap(err, "Can't set logger")
 	}
 
-	m := NewMySQLConfig(db)
-	mysql, err := sql.Open("mysql", m.FormatDSN())
+	mysql, err := sql.Open("mysql", db.FormatDBUnspecifiedDSN())
 	if err != nil {
 		return errors.Wrap(err, "Create mysql connection")
 	}

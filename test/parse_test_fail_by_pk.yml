@@ -1,0 +1,16 @@
+definitions:
+    test_table:
+        type: object
+        title: test
+        table:
+            name: test
+            primary_key:
+                test_pk:
+                    - test_primary_key_column
+        properties:
+            test_not_primary_key_column:
+                column:
+                    name: test_column
+                    type: test_type
+                    unique: true
+                    default: default_test

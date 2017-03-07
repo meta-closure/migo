@@ -19,14 +19,14 @@ func (op MigrateOption) isJSONFormat() bool {
 func ReadSchema(op MigrateOption) (*hschema.HyperSchema, error) {
 	h := hschema.New()
 	if op.isYAMLFormat() {
-		if err := readYAMLFormatSchema(h, op.StateFilePath); err != nil {
+		if err := readYAMLFormatSchema(h, op.SchemaFilePath); err != nil {
 			return h, err
 		}
 		return h, nil
 	}
 
 	if op.isJSONFormat() {
-		if err := readJSONFormatSchema(h, op.StateFilePath); err != nil {
+		if err := readJSONFormatSchema(h, op.SchemaFilePath); err != nil {
 			return h, err
 		}
 		return h, nil
@@ -55,13 +55,13 @@ func Plan(op MigrateOption) error {
 	if err != nil {
 		return errors.Wrap(err, "parsing state from hyper-schema")
 	}
-	new.DB = db
+	new.DB = *db
 
 	ops, err := NewOperations(old, new)
 	if err != nil {
 		return errors.Wrap(err, "creating requests")
 	}
-	_ = ops
+	Announce(ops, *db)
 	return nil
 }
 
@@ -85,12 +85,14 @@ func Run(op MigrateOption) error {
 	if err != nil {
 		return errors.Wrap(err, "parsing state from hyper-schema")
 	}
-	new.DB = db
+	new.DB = *db
 
 	ops, err := NewOperations(old, new)
 	if err != nil {
 		return errors.Wrap(err, "creating requests")
 	}
+
+	Announce(ops, *db)
 	if err := db.migrate(ops); err != nil {
 		return err
 	}
@@ -112,19 +114,18 @@ func (db DB) migrate(ops Operations) error {
 }
 
 func (db DB) rollback(ops Operations) error {
-	m := NewMySQLConfig(db)
-	mysql, err := sql.Open("mysql", m.FormatDSN())
+	mysql, err := sql.Open("mysql", db.FormatDSN())
 	if err != nil {
 		return err
 	}
 	defer mysql.Close()
 
 	for i := 1; i < i+1; i++ {
-		if _, err = mysql.Exec(ops.Operation[ops.execCount-i].Exec()); err != nil {
-			fmt.Printf("FAILED: %s", ops.Operation[ops.execCount-i].Exec())
+		if _, err = mysql.Exec(ops.Operation[ops.execCount-i].Query()); err != nil {
+			fmt.Printf("FAILED: %s", ops.Operation[ops.execCount-i].Query())
 			fmt.Printf("ERROR:  %s", err)
 			fmt.Println(">>>>>>>> RECOVERY FAILED")
-			return errors.Wrapf(err, "Query: %s", ops.Operation[ops.execCount-i].Exec())
+			return errors.Wrapf(err, "Query: %s", ops.Operation[ops.execCount-i].Query())
 		}
 	}
 
@@ -133,23 +134,31 @@ func (db DB) rollback(ops Operations) error {
 }
 
 func (db DB) exec(ops Operations) error {
-	m := NewMySQLConfig(db)
-	mysql, err := sql.Open("mysql", m.FormatDSN())
+	mysql, err := sql.Open("mysql", db.FormatDSN())
 	if err != nil {
 		return err
 	}
 	defer mysql.Close()
 
 	for i, op := range ops.Operation {
-		if _, err := mysql.Exec(op.Exec()); err != nil {
-			fmt.Printf("FAILED: %s", op.Exec())
+		if _, err := mysql.Exec(op.Query()); err != nil {
+			fmt.Printf("FAILED: %s", op.Query())
 			fmt.Printf("ERROR:  %s", err)
 			fmt.Println(">>>>>>>> MIGRATION FAILED")
 			ops.execCount = i
-			return errors.Wrapf(err, "Query: %s", op.Exec())
+			return errors.Wrapf(err, "Query: %s", op.Query())
 		}
 	}
 
 	fmt.Println(">>>>>>>> MIGRATION SUCCEED")
 	return nil
+}
+
+func Announce(ops Operations, db DB) {
+	fmt.Println("\n---------- DATABASE MIGRATION IS .......\n")
+
+	fmt.Printf("DATABASE CONFIGURE: %s \n\n", db.FormatDSN())
+	for _, op := range ops.Operation {
+		fmt.Println(op.String())
+	}
 }

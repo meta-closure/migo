@@ -1,132 +1,290 @@
-package migo
+package migo_test
 
 import (
-	"io/ioutil"
+	"reflect"
 	"testing"
 
-	"github.com/ghodss/yaml"
-	"github.com/lestrrat/go-jshschema"
-	"github.com/pkg/errors"
+	"github.com/meta-closure/migo"
 )
 
-type NewDbTestCase struct {
-	DbPath       string
-	Env          string
-	ExpectDbName string
-}
+func TestNewStateFromSchema(t *testing.T) {
 
-func ParseSchema(h *hschema.HyperSchema, pt string) error {
-	b, err := ioutil.ReadFile(pt)
-	if err != nil {
-		return errors.Wrap(err, "YAML file open error")
+	type Case struct {
+		input         migo.MigrateOption
+		expectedState migo.State
+		isSuccess     bool
+		spec          string
 	}
-	y := &map[string]interface{}{}
-	err = yaml.Unmarshal(b, y)
-	if err != nil {
-		return errors.Wrap(err, "YAML file parse error")
-	}
-	h.Extract(*y)
-	return nil
-}
 
-func TestNewDb(t *testing.T) {
-	tests := []NewDbTestCase{{
-		DbPath:       "./test/database.yml",
-		Env:          "default",
-		ExpectDbName: "default",
-	}, {
-		DbPath:       "./test/database.yml",
-		Env:          "other",
-		ExpectDbName: "env",
-	}}
-	for _, test := range tests {
-		db, err := NewDb(test.DbPath, test.Env)
+	cases := []Case{
+		{
+			input: migo.MigrateOption{
+				SchemaFilePath: "./test/parse_test_fail_by_index.yml",
+				FormatType:     "yaml",
+			},
+			spec:      "incorrect index setting",
+			isSuccess: false,
+		},
+		{
+			input: migo.MigrateOption{
+				SchemaFilePath: "./test/parse_test_fail_by_pk.yml",
+				FormatType:     "yaml",
+			},
+			spec:      "incorrect primary key setting",
+			isSuccess: false,
+		},
+		{
+			input: migo.MigrateOption{
+				SchemaFilePath: "./test/parse_test_fail_by_fk.yml",
+				FormatType:     "yaml",
+			},
+			spec:      "incorrect foreign key setting",
+			isSuccess: false,
+		},
+		{
+			input: migo.MigrateOption{
+				SchemaFilePath: "./test/parse_test_column.yml",
+				FormatType:     "yaml",
+			},
+			expectedState: migo.State{
+				Tables: []migo.Table{
+					{
+						Id:   "#/definitions/test",
+						Name: "test",
+						Column: []migo.Column{
+							{
+								Id:            "column",
+								Name:          "column",
+								Type:          "type",
+								Unique:        true,
+								Default:       "default_test",
+								AutoIncrement: true,
+								AutoUpdate:    true,
+								NotNull:       true,
+							},
+						},
+					},
+				},
+			},
+			spec:      "correct column",
+			isSuccess: true,
+		},
+		{
+			input: migo.MigrateOption{
+				SchemaFilePath: "./test/parse_test_fk.yml",
+				FormatType:     "yaml",
+			},
+			expectedState: migo.State{
+				Tables: []migo.Table{
+					{
+						Id:   "#/definitions/source_table",
+						Name: "test2",
+						Column: []migo.Column{
+							{
+								Name:    "source_column",
+								Id:      "source_column",
+								Type:    "source_type",
+								Unique:  true,
+								Default: "default_test",
+							},
+						},
+					},
+					{
+						Id:   "#/definitions/target_table",
+						Name: "test1",
+						Column: []migo.Column{
+							{
+								Id:      "target_column",
+								Name:    "target_column",
+								Type:    "target_type",
+								Unique:  true,
+								Default: "default_test",
+							},
+						},
+						PrimaryKey: []migo.Key{
+							{
+								Target: []migo.Column{
+									{
+										Id:      "target_column",
+										Name:    "target_column",
+										Type:    "target_type",
+										Unique:  true,
+										Default: "default_test",
+									},
+								},
+								Name: "test_pk",
+							},
+						},
+					},
+				},
+				ForeignKey: []migo.ForeignKey{
+					{
+						SourceColumn: migo.Column{
+							Name:    "source_column",
+							Id:      "source_column",
+							Type:    "source_type",
+							Unique:  true,
+							Default: "default_test",
+						},
+						SourceTable: migo.Table{
+							Id:   "#/definitions/source_table",
+							Name: "test2",
+							Column: []migo.Column{
+								{
+									Name:    "source_column",
+									Id:      "source_column",
+									Type:    "source_type",
+									Unique:  true,
+									Default: "default_test",
+								},
+							},
+						},
+						TargetColumn: migo.Column{
+							Id:      "target_column",
+							Name:    "target_column",
+							Type:    "target_type",
+							Unique:  true,
+							Default: "default_test",
+						},
+						TargetTable: migo.Table{
+							Id:   "#/definitions/target_table",
+							Name: "test1",
+							Column: []migo.Column{
+								{
+									Id:      "target_column",
+									Name:    "target_column",
+									Type:    "target_type",
+									Unique:  true,
+									Default: "default_test",
+								},
+							},
+							PrimaryKey: []migo.Key{
+								{
+									Target: []migo.Column{
+										{
+											Id:      "target_column",
+											Name:    "target_column",
+											Type:    "target_type",
+											Unique:  true,
+											Default: "default_test",
+										},
+									},
+									Name: "test_pk",
+								},
+							},
+						},
+					},
+				},
+			},
+			spec:      "correct foreign key setting",
+			isSuccess: true,
+		},
+		{
+			input: migo.MigrateOption{
+				SchemaFilePath: "./test/parse_test_pk.yml",
+				FormatType:     "yaml",
+			},
+			expectedState: migo.State{
+				Tables: []migo.Table{
+					{
+						Id:   "#/definitions/test_table",
+						Name: "test",
+						Column: []migo.Column{
+							{
+								Id:      "test_primary_key_column",
+								Name:    "test_column",
+								Type:    "test_type",
+								Unique:  true,
+								Default: "default_test",
+							},
+						},
+						PrimaryKey: []migo.Key{
+							{
+								Name: "test_pk",
+								Target: []migo.Column{
+									{
+										Id:      "test_primary_key_column",
+										Name:    "test_column",
+										Type:    "test_type",
+										Unique:  true,
+										Default: "default_test",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			spec:      "correct primary key setting",
+			isSuccess: true,
+		},
+		{
+			input: migo.MigrateOption{
+				SchemaFilePath: "./test/parse_test_index.yml",
+				FormatType:     "yaml",
+			},
+			expectedState: migo.State{
+				Tables: []migo.Table{
+					{
+						Id:   "#/definitions/test_table",
+						Name: "test",
+						Column: []migo.Column{
+							{
+								Id:      "test_index_column",
+								Name:    "test_column",
+								Type:    "test_type",
+								Unique:  true,
+								Default: "default_test",
+							},
+						},
+						Index: []migo.Key{
+							{
+								Name: "test_index",
+								Target: []migo.Column{
+									{
+										Id:      "test_index_column",
+										Name:    "test_column",
+										Type:    "test_type",
+										Unique:  true,
+										Default: "default_test",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			spec:      "correct index setting",
+			isSuccess: true,
+		},
+	}
+
+	for _, c := range cases {
+		h, err := migo.ReadSchema(c.input)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("in %s, fail to read %s path file because %s", c.spec, c.input.SchemaFilePath, err)
+			continue
 		}
-		if db.DBName != test.ExpectDbName {
-			t.Errorf("Parse db config error: config: %+v, result: %+v", test, db)
+
+		s, err := migo.NewStateFromSchema(h)
+		if !c.isSuccess && err == nil {
+			t.Errorf("in %s, error is expected but null", c.spec)
+			continue
 		}
-	}
-}
+		if c.isSuccess && err != nil {
+			t.Errorf("in %s, catche the unexpected error %s", c.spec, err)
+		}
 
-func TestScm2State(t *testing.T) {
-	hs := hschema.New()
+		if err != nil {
+			continue
+		}
 
-	err := ParseSchema(hs, "./test/parse_test_schema.yml")
-	if err != nil {
-		t.Errorf("Test YAML Parse error: %s", err)
-	}
-
-	s, err := ParseSchema2State(hs, "./test/database.yml", "default")
-	if err != nil {
-		t.Fatalf("Should pass parse Schema: %s", err)
-	}
-
-	tbl, ok := s.GetTable("#/definitions/test_table")
-
-	if ok != true {
-		t.Error("Should exist test table")
-	}
-
-	if len(tbl.Index[0].Target) != 2 {
-		t.Error("Should index size is 2")
-	}
-
-	if len(tbl.PrimaryKey[0].Target) != 2 {
-		t.Error("Should primary key size is 2")
-	}
-
-	if len(tbl.Column) != 1 {
-		t.Error("Should column size is 1")
-	}
-
-	col, ok := tbl.GetColumn("test_column")
-
-	if ok != true {
-		t.Error("Should exist test_column column")
-	}
-
-	if col.Type != "test_type" {
-		t.Error("Should column type is test_type")
-	}
-
-	if col.NotNullFlag != true {
-		t.Error("Should not null flag is true")
-	}
-	if col.AutoUpdateFlag != true {
-		t.Error("Should auto_update is true")
-	}
-	if col.UniqueFlag != true {
-		t.Error("Should unique flag is true")
-	}
-
-	if col.FK.UpdateCascade != true {
-		t.Error("Should update_cascade flag is true")
-	}
-
-	if col.FK.DeleteCascade != true {
-		t.Error("Should delete_cascade flag is true")
-	}
-	if col.Default != "default_test" {
-		t.Error("Should default is default_test")
-	}
-
-	if col.AutoIncrementFlag != true {
-		t.Error("Should auto_increment flag is true")
-	}
-
-	fk := col.FK
-
-	if fk.Name != "fk_test" {
-		t.Error("Should fk name is fk_test")
-	}
-
-	if fk.TargetColumn != "fk_column" {
-		t.Error("Should fk target_column is fk_column")
-	}
-
-	if fk.TargetTable != "#/definitions/fk_table" {
-		t.Error("Should fk target_table is #/definitions/fk_table")
+		c.expectedState.UpdateAt = s.UpdateAt
+		for i := range c.expectedState.ForeignKey {
+			s.ForeignKey[i].Raw = c.expectedState.ForeignKey[i].Raw
+		}
+		if !reflect.DeepEqual(c.expectedState, s) {
+			t.Errorf("in %s, expected state is %+v, but actual %+v", c.spec, c.expectedState, s)
+		}
 	}
 }

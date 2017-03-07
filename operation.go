@@ -13,7 +13,7 @@ type Operations struct {
 
 type Operation interface {
 	RollBack() string
-	Exec() string
+	Query() string
 	String() string
 }
 
@@ -25,7 +25,7 @@ func NewCreateTable(t Table) Operation {
 	return CreateTable{Table: t}
 }
 
-func (op CreateTable) Exec() string {
+func (op CreateTable) Query() string {
 	cols := []string{}
 	for _, c := range op.Table.Column {
 		cols = append(cols, c.definitionString())
@@ -37,7 +37,7 @@ func (op CreateTable) String() string {
 }
 
 func (op CreateTable) RollBack() string {
-	return NewDropTable(op.Table).Exec()
+	return NewDropTable(op.Table).Query()
 }
 
 func (c Column) definitionString() string {
@@ -51,9 +51,11 @@ func (c Column) definitionString() string {
 	if c.Unique {
 		s = append(s, "UNIQUE")
 	}
+
 	if c.Default != "" && !isDatetime(c.Type) {
-		s = append(s, "DEFAULT '%s'", c.Default)
+		s = append(s, fmt.Sprintf("DEFAULT '%s'", c.Default))
 	}
+
 	if isDatetime(c.Type) {
 		if c.AutoUpdate {
 			s = append(s, fmt.Sprintf("ON UPDATE CURRENT_TIMESTAMP%s", digit(c.Type)))
@@ -81,12 +83,12 @@ func NewDropTable(t Table) Operation {
 	return DropTable{Table: t}
 }
 
-func (op DropTable) Exec() string {
+func (op DropTable) Query() string {
 	return fmt.Sprintf("DROP TABLE %s", op.Table.Name)
 }
 
 func (op DropTable) RollBack() string {
-	return NewCreateTable(op.Table).Exec()
+	return NewCreateTable(op.Table).Query()
 }
 
 func (op DropTable) String() string {
@@ -98,26 +100,24 @@ type AddForeignKey struct {
 }
 
 func NewAddForeignKey(key ForeignKey) Operation {
-	return AddForeignKey{
-		ForeignKey: key,
-	}
+	return AddForeignKey{ForeignKey: key}
 }
 
 func (op AddForeignKey) String() string {
 	return fmt.Sprintf("ADD FOREIGN KEY FROM [%s] IN [%s] => [%s] IN [%s]",
-		op.ForeignKey.SourceColumn,
-		op.ForeignKey.SourceTable,
-		op.ForeignKey.TargetColumn,
-		op.ForeignKey.TargetTable)
+		op.ForeignKey.SourceColumn.Name,
+		op.ForeignKey.SourceTable.Name,
+		op.ForeignKey.TargetColumn.Name,
+		op.ForeignKey.TargetTable.Name)
 }
 
-func (op AddForeignKey) Exec() string {
+func (op AddForeignKey) Query() string {
 	s := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)",
-		op.ForeignKey.SourceTable,
+		op.ForeignKey.SourceTable.Name,
 		op.ForeignKey.Name,
-		op.ForeignKey.SourceColumn,
-		op.ForeignKey.TargetTable,
-		op.ForeignKey.TargetColumn,
+		op.ForeignKey.SourceColumn.Name,
+		op.ForeignKey.TargetTable.Name,
+		op.ForeignKey.TargetColumn.Name,
 	)
 
 	fk := []string{s}
@@ -133,7 +133,7 @@ func (op AddForeignKey) Exec() string {
 }
 
 func (op AddForeignKey) RollBack() string {
-	return NewDropForeignKey(op.ForeignKey).Exec()
+	return NewDropForeignKey(op.ForeignKey).Query()
 }
 
 type DropForeignKey struct {
@@ -147,41 +147,43 @@ func NewDropForeignKey(key ForeignKey) Operation {
 }
 func (op DropForeignKey) String() string {
 	return fmt.Sprintf("DROP FOREIGN KEY FROM [%s]: [%s] => [%s]: [%s]",
-		op.ForeignKey.SourceTable, op.ForeignKey.SourceColumn,
-		op.ForeignKey.TargetColumn, op.ForeignKey.TargetColumn)
+		op.ForeignKey.SourceTable.Name,
+		op.ForeignKey.SourceColumn.Name,
+		op.ForeignKey.TargetColumn.Name,
+		op.ForeignKey.TargetColumn.Name)
 }
 
-func (op DropForeignKey) Exec() string {
+func (op DropForeignKey) Query() string {
 	return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s",
-		op.ForeignKey.SourceTable,
+		op.ForeignKey.SourceTable.Name,
 		op.ForeignKey.Name,
 	)
 }
 
 func (op DropForeignKey) RollBack() string {
-	return NewAddForeignKey(op.ForeignKey).Exec()
+	return NewAddForeignKey(op.ForeignKey).Query()
 }
 
 type RenameTable struct {
 	CurrentTable Table
-	UpdatedTable Table
+	NewTable     Table
 }
 
 func NewRenameTable(old, new Table) Operation {
 	return RenameTable{
 		CurrentTable: old,
-		UpdatedTable: new,
+		NewTable:     new,
 	}
 }
 
 func (op RenameTable) String() string {
-	return fmt.Sprintf("RENAME TABLE: [%s] => [%s]", op.CurrentTable.Name, op.UpdatedTable.Name)
+	return fmt.Sprintf("RENAME TABLE: [%s] => [%s]", op.CurrentTable.Name, op.NewTable.Name)
 }
-func (op RenameTable) Exec() string {
-	return fmt.Sprintf("ALTER TABLE %s RENAME %s", op.CurrentTable.Name, op.UpdatedTable.Name)
+func (op RenameTable) Query() string {
+	return fmt.Sprintf("ALTER TABLE %s RENAME %s", op.CurrentTable.Name, op.NewTable.Name)
 }
 func (op RenameTable) RollBack() string {
-	return NewRenameTable(op.UpdatedTable, op.CurrentTable).Exec()
+	return NewRenameTable(op.NewTable, op.CurrentTable).Query()
 }
 
 type DropColumn struct {
@@ -199,11 +201,11 @@ func NewDropColumn(t Table, c Column) Operation {
 func (op DropColumn) String() string {
 	return fmt.Sprintf("DROP COLUMN [%s] IN [%s]", op.Column.Name, op.Table.Name)
 }
-func (op DropColumn) Exec() string {
-	return fmt.Sprintf("ALTER TABLE %s DROP %s", op.Table.Name, op.Column.Name)
+func (op DropColumn) Query() string {
+	return fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", op.Table.Name, op.Column.Name)
 }
 func (op DropColumn) RollBack() string {
-	return NewAddColumn(op.Table, op.Column).Exec()
+	return NewAddColumn(op.Table, op.Column).Query()
 }
 
 type AddColumn struct {
@@ -221,39 +223,39 @@ func NewAddColumn(t Table, c Column) Operation {
 func (op AddColumn) String() string {
 	return fmt.Sprintf("ADD COLUMN [%s] IN [%s]", op.Column.Name, op.Table.Name)
 }
-func (op AddColumn) Exec() string {
-	return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", op.Table.Name, op.Column.definitionString)
+func (op AddColumn) Query() string {
+	return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", op.Table.Name, op.Column.definitionString())
 }
 func (op AddColumn) RollBack() string {
-	return NewDropColumn(op.Table, op.Column).Exec()
+	return NewDropColumn(op.Table, op.Column).Query()
 }
 
 type UpdateColumn struct {
 	Table         Table
 	CurrentColumn Column
-	UpdatedColumn Column
+	NewColumn     Column
 }
 
 func NewUpdateColumn(t Table, old, new Column) Operation {
 	return UpdateColumn{
 		Table:         t,
 		CurrentColumn: old,
-		UpdatedColumn: new,
+		NewColumn:     new,
 	}
 }
 func (op UpdateColumn) String() string {
 	return fmt.Sprintf("CHANGE COLUMN [%s] IN [%s]", op.CurrentColumn.Name, op.Table.Name)
 }
 
-func (op UpdateColumn) Exec() string {
+func (op UpdateColumn) Query() string {
 	return fmt.Sprintf("ALTER TABLE %s CHANGE COLUMN %s %s",
 		op.Table.Name,
 		op.CurrentColumn.Name,
-		op.UpdatedColumn.definitionString())
+		op.NewColumn.definitionString())
 }
 
 func (op UpdateColumn) RollBack() string {
-	return NewUpdateColumn(op.Table, op.UpdatedColumn, op.CurrentColumn).Exec()
+	return NewUpdateColumn(op.Table, op.NewColumn, op.CurrentColumn).Query()
 }
 
 type DropIndex struct {
@@ -270,11 +272,11 @@ func NewDropIndex(t Table, k Key) DropIndex {
 func (op DropIndex) String() string {
 	return fmt.Sprintf("DROP INDEX %s IN %s", op.Index.Name, op.Table.Name)
 }
-func (op DropIndex) Exec() string {
+func (op DropIndex) Query() string {
 	return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", op.Table.Name, op.Index.Name)
 }
 func (op DropIndex) RollBack() string {
-	return NewAddIndex(op.Table, op.Index).Exec()
+	return NewAddIndex(op.Table, op.Index).Query()
 }
 
 type DropPrimaryKey struct {
@@ -291,11 +293,11 @@ func NewDropPrimaryKey(t Table, k Key) DropPrimaryKey {
 func (op DropPrimaryKey) String() string {
 	return fmt.Sprintf("DROP PRIMARY KEY %s IN %s", op.PrimaryKey.Name, op.Table.Name)
 }
-func (op DropPrimaryKey) Exec() string {
+func (op DropPrimaryKey) Query() string {
 	return fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", op.Table.Name)
 }
 func (op DropPrimaryKey) RollBack() string {
-	return NewAddPrimaryKey(op.Table, op.PrimaryKey).Exec()
+	return NewAddPrimaryKey(op.Table, op.PrimaryKey).Query()
 }
 
 type AddPrimaryKey struct {
@@ -304,16 +306,23 @@ type AddPrimaryKey struct {
 }
 
 func NewAddPrimaryKey(t Table, k Key) AddPrimaryKey {
-	return AddPrimaryKey{PrimaryKey: k}
+	return AddPrimaryKey{
+		Table:      t,
+		PrimaryKey: k,
+	}
 }
 func (op AddPrimaryKey) String() string {
 	return fmt.Sprintf("ADD PRIMARY KEY %s IN %s", op.PrimaryKey.Name, op.Table.Name)
 }
-func (op AddPrimaryKey) Exec() string {
-	return fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY %s (%s)", op.PrimaryKey.Name, strings.Join(op.PrimaryKey.Target, ","))
+func (op AddPrimaryKey) Query() string {
+	s := []string{}
+	for _, v := range op.PrimaryKey.Target {
+		s = append(s, v.Name)
+	}
+	return fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY %s (%s)", op.Table.Name, op.PrimaryKey.Name, strings.Join(s, ","))
 }
 func (op AddPrimaryKey) RollBack() string {
-	return NewDropPrimaryKey(op.Table, op.PrimaryKey).Exec()
+	return NewDropPrimaryKey(op.Table, op.PrimaryKey).Query()
 }
 
 type AddIndex struct {
@@ -330,9 +339,13 @@ func NewAddIndex(t Table, k Key) AddIndex {
 func (op AddIndex) String() string {
 	return fmt.Sprintf("ADD INDEX %s IN %s", op.Index.Name, op.Table.Name)
 }
-func (op AddIndex) Exec() string {
-	return fmt.Sprintf("ALTER TABLE %s ADD INDEX %s (%s)", op.Table.Name, op.Index.Name, strings.Join(op.Index.Target, ","))
+func (op AddIndex) Query() string {
+	s := []string{}
+	for _, v := range op.Index.Target {
+		s = append(s, v.Name)
+	}
+	return fmt.Sprintf("ALTER TABLE %s ADD INDEX %s (%s)", op.Table.Name, op.Index.Name, strings.Join(s, ","))
 }
 func (op AddIndex) RollBack() string {
-	return NewDropIndex(op.Table, op.Index).Exec()
+	return NewDropIndex(op.Table, op.Index).Query()
 }

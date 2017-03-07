@@ -1,75 +1,12 @@
 package migo
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 )
-
-/*
-func (ops Operations) Check() {
-	fmt.Println("\n---------- DATABASE MIGRATION IS .......\n")
-
-	fmt.Printf("DATABASE CONFIGURE: %s \n\n", ops.Target.FormatDSN())
-	for _, op := range ops.Operation {
-		if op.Column.Name == "padding" {
-			continue
-		}
-		fmt.Println(op.Strings())
-	}
-}
-
-func ConvertKeyId2Name(t Table, k Key) (Key, error) {
-	l := []string{}
-	for i, key := range k.Target {
-		col, ok := t.GetColumn(key)
-		if ok != true {
-			return Key{}, errors.Wrap(ErrNotExistReference, k.Target[i])
-		}
-		l = append(l, col.Name)
-	}
-
-	return Key{Name: k.Name, Target: l}, nil
-}
-
-func (s *State) ConvertForeignKeyId2Name(col Column) (Column, error) {
-	stab, ok := s.GetTable(col.ForeignKey.TargetTable)
-	if ok != true {
-		return col, errors.Wrapf(ErrNotExistReference, "%s Table not found", col.ForeignKey.TargetTable)
-	}
-
-	scol, ok := stab.GetColumn(col.ForeignKey.TargetColumn)
-	if ok != true {
-		return col, errors.Wrapf(ErrNotExistReference, "%s Column not found", col.ForeignKey.TargetColumn)
-	}
-
-	col.ForeignKey.TargetTable = stab.Name
-	col.ForeignKey.TargetColumn = scol.Name
-	return col, nil
-}
-
-func SameColumn(o, n Column) bool {
-
-	if o.Type != n.Type {
-		return false
-	}
-	if o.NotNull != n.NotNull {
-		return false
-	}
-	if o.Unique != n.Unique {
-		return false
-	}
-	if o.Default != n.Default {
-		return false
-	}
-	if o.AutoUpdate != n.AutoUpdate {
-		return false
-	}
-
-	return true
-}
-*/
 
 func NewMySQLConfig(db DB) mysql.Config {
 	return mysql.Config{
@@ -150,15 +87,6 @@ func (t Table) hasPrimaryKey(k Key) bool {
 	return true
 }
 
-func (t Table) selectForeignKeyWithColumn(c Column) []ForeignKey {
-	included := []ForeignKey{}
-	for _, fk := range t.ForeignKey {
-		if fk.SourceColumn == c.Id {
-			included = append(included, fk)
-		}
-	}
-	return included
-}
 func (t Table) selectColumnWithID(id string) (Column, error) {
 	for _, c := range t.Column {
 		if c.Id == id {
@@ -189,47 +117,65 @@ func (c Column) isUpdatedFrom(target Column) (bool, error) {
 	return !reflect.DeepEqual(c, target), nil
 }
 
-func (ops *Operations) UpdateTable(current, new Table) error {
-	if current.Name != new.Name {
-		ops.Operation = append(ops.Operation, NewRenameTable(current, new))
+func (ops *Operations) UpdateTable(currentTable, newTable Table) error {
+	if len(newTable.Column) == 0 {
+		return errors.New("table's column should not be empty")
 	}
 
-	for _, k := range current.Index {
-		if !new.hasIndex(k) {
-			ops.Operation = append(ops.Operation, NewDropIndex(new, k))
+	pk := []Key{}
+	for _, k := range newTable.PrimaryKey {
+		_, err := Table{PrimaryKey: pk}.selectPrimaryKeyWithName(k.Name)
+		if err == nil {
+			return fmt.Errorf("primary key %s is not unique", k.Name)
+		}
+		pk = append(pk, k)
+	}
+
+	idx := []Key{}
+	for _, k := range newTable.Index {
+		_, err := Table{Index: idx}.selectIndexWithName(k.Name)
+		if err == nil {
+			return fmt.Errorf("index %s is not unique", k.Name)
+		}
+		idx = append(idx, k)
+	}
+
+	if currentTable.Name != newTable.Name {
+		ops.Operation = append(ops.Operation, NewRenameTable(currentTable, newTable))
+	}
+
+	for _, k := range currentTable.Index {
+		if !newTable.hasIndex(k) {
+			ops.Operation = append(ops.Operation, NewDropIndex(newTable, k))
 		}
 	}
 
-	for _, k := range current.PrimaryKey {
-		if !new.hasPrimaryKey(k) {
-			ops.Operation = append(ops.Operation, NewDropPrimaryKey(new, k))
+	for _, k := range currentTable.PrimaryKey {
+		if !newTable.hasPrimaryKey(k) {
+			ops.Operation = append(ops.Operation, NewDropPrimaryKey(newTable, k))
 		}
 	}
 
-	for _, c := range current.Column {
-		if !new.hasColumn(c) {
-			keys := current.selectForeignKeyWithColumn(c)
-			for _, fk := range keys {
-				ops.Operation = append(ops.Operation, NewDropForeignKey(fk))
-			}
-			ops.Operation = append(ops.Operation, NewDropColumn(new, c))
+	for _, c := range currentTable.Column {
+		if !newTable.hasColumn(c) {
+			ops.Operation = append(ops.Operation, NewDropColumn(newTable, c))
 		}
 	}
 
-	for _, c := range new.Column {
-		if !current.hasColumn(c) {
-			ops.Operation = append(ops.Operation, NewAddColumn(new, c))
-		}
-		keys := new.selectForeignKeyWithColumn(c)
-		for _, fk := range keys {
-			ops.Operation = append(ops.Operation, NewAddForeignKey(fk))
+	for _, c := range newTable.Column {
+		if !currentTable.hasColumn(c) {
+			ops.Operation = append(ops.Operation, NewAddColumn(newTable, c))
 		}
 	}
 
-	for _, k := range new.Index {
-		old, err := current.selectIndexWithName(k.Name)
+	for _, k := range newTable.Index {
+		if len(k.Target) == 0 {
+			return errors.New("index's target is should not be empty")
+		}
+
+		old, err := currentTable.selectIndexWithName(k.Name)
 		if err != nil {
-			ops.Operation = append(ops.Operation, NewAddIndex(new, k))
+			ops.Operation = append(ops.Operation, NewAddIndex(newTable, k))
 			continue
 		}
 		isUpdated, err := k.isUpdatedFrom(old)
@@ -237,15 +183,19 @@ func (ops *Operations) UpdateTable(current, new Table) error {
 			return err
 		}
 		if isUpdated {
-			ops.Operation = append(ops.Operation, NewDropIndex(new, old))
-			ops.Operation = append(ops.Operation, NewAddIndex(new, k))
+			ops.Operation = append(ops.Operation, NewDropIndex(newTable, old))
+			ops.Operation = append(ops.Operation, NewAddIndex(newTable, k))
 		}
 	}
 
-	for _, k := range new.PrimaryKey {
-		old, err := current.selectPrimaryKeyWithName(k.Name)
+	for _, k := range newTable.PrimaryKey {
+		if len(k.Target) == 0 {
+			return errors.New("primary key's target is should not be empty")
+		}
+
+		old, err := currentTable.selectPrimaryKeyWithName(k.Name)
 		if err != nil {
-			ops.Operation = append(ops.Operation, NewAddPrimaryKey(new, k))
+			ops.Operation = append(ops.Operation, NewAddPrimaryKey(newTable, k))
 			continue
 		}
 		isUpdated, err := k.isUpdatedFrom(old)
@@ -253,17 +203,17 @@ func (ops *Operations) UpdateTable(current, new Table) error {
 			return err
 		}
 		if isUpdated {
-			ops.Operation = append(ops.Operation, NewDropPrimaryKey(new, old))
-			ops.Operation = append(ops.Operation, NewAddPrimaryKey(new, k))
+			ops.Operation = append(ops.Operation, NewDropPrimaryKey(newTable, old))
+			ops.Operation = append(ops.Operation, NewAddPrimaryKey(newTable, k))
 		}
 	}
 
-	for _, c := range new.Column {
-		old, err := current.selectColumnWithID(c.Id)
+	for _, c := range newTable.Column {
+		old, err := currentTable.selectColumnWithID(c.Id)
 		if err != nil {
 			continue
 		}
-		ops.Operation = append(ops.Operation, NewUpdateColumn(new, old, c))
+		ops.Operation = append(ops.Operation, NewUpdateColumn(newTable, old, c))
 	}
 
 	return nil
@@ -276,21 +226,20 @@ func (ops *Operations) DropTables(ts []Table) error {
 	return nil
 }
 
-func (ops *Operations) CreateTables(ts []Table) error {
+func (ops *Operations) CreateTables(s State, ts []Table) error {
 	for _, t := range ts {
 		ops.Operation = append(ops.Operation, NewCreateTable(t))
-	}
-	for _, t := range ts {
-		for _, fk := range t.ForeignKey {
-			ops.Operation = append(ops.Operation, NewAddForeignKey(fk))
-		}
 	}
 	return nil
 }
 
-func NewOperations(current, update State) (Operations, error) {
+func NewOperations(currentState, newState State) (Operations, error) {
 	ops := Operations{}
-	ts, err := current.selectTablesNotIn(update)
+	for _, fk := range currentState.ForeignKey {
+		ops.Operation = append(ops.Operation, NewDropForeignKey(fk))
+	}
+
+	ts, err := currentState.selectTablesNotIn(newState)
 	if err != nil {
 		return ops, err
 	}
@@ -298,17 +247,17 @@ func NewOperations(current, update State) (Operations, error) {
 		return ops, err
 	}
 
-	ts, err = update.selectTablesNotIn(current)
+	ts, err = newState.selectTablesNotIn(currentState)
 	if err != nil {
 		return ops, err
 	}
-	if err := ops.CreateTables(ts); err != nil {
+	if err := ops.CreateTables(newState, ts); err != nil {
 		return ops, err
 	}
 
-	ts, err = update.selectTablesIn(current)
+	ts, err = newState.selectTablesIn(currentState)
 	for _, t := range ts {
-		s, err := current.selectTableWithID(t.Id)
+		s, err := currentState.selectTableWithID(t.Id)
 		if err != nil {
 			continue
 		}
@@ -316,5 +265,10 @@ func NewOperations(current, update State) (Operations, error) {
 			return ops, err
 		}
 	}
+
+	for _, fk := range newState.ForeignKey {
+		ops.Operation = append(ops.Operation, NewAddForeignKey(fk))
+	}
+
 	return ops, nil
 }

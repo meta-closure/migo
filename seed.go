@@ -71,8 +71,7 @@ func Seed(op SeedOption) error {
 }
 
 func (db DB) seed(requests []Records) error {
-	m := NewMySQLConfig(db)
-	mysql, err := sql.Open("mysql", m.FormatDSN())
+	mysql, err := sql.Open("mysql", db.FormatDSN())
 	if err != nil {
 		return errors.Wrap(err, "create mysql connection")
 	}
@@ -89,8 +88,8 @@ func (db DB) seed(requests []Records) error {
 	}()
 
 	for _, r := range requests {
-		if _, err := mysql.Exec(r.Exec()); err != nil {
-			return errors.Wrapf(err, "fail to insert request: `%s`", r.Exec())
+		if _, err := mysql.Exec(r.Query()); err != nil {
+			return errors.Wrapf(err, "fail to insert request: `%s`", r.Query())
 		}
 	}
 
@@ -129,15 +128,15 @@ func fillWhenEmpty(list []string, target map[string]interface{}, fill string) []
 	return m
 }
 
-func join(list []string, prefix, suffix string) string {
+func JoinWithComma(list []string, prefix, suffix string) string {
 	return prefix + strings.Join(list, ",") + suffix
 }
 
 func request(list []string, target map[string]interface{}) string {
-	return join(fillWhenEmpty(list, target, "NULL"), "(", ")")
+	return JoinWithComma(fillWhenEmpty(list, target, "NULL"), "(", ")")
 }
 
-func (r Records) Exec() string {
+func (r Records) Query() string {
 	if r.Table == "" || len(r.Items) == 0 {
 		return ""
 	}
@@ -149,5 +148,5 @@ func (r Records) Exec() string {
 	}
 
 	return fmt.Sprintf("INSERT INTO `%s` %s VALUES %s",
-		r.Table, join(keys, "(", ")"), strings.Join(m, ","))
+		r.Table, JoinWithComma(keys, "(", ")"), strings.Join(m, ","))
 }

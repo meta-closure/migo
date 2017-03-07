@@ -1,0 +1,34 @@
+definitions:
+    target_table:
+        type: object
+        title: test1
+        table:
+            name: test1
+            primary_key:
+                test_pk:
+                    - target_column
+        properties:
+            target_column:
+                  column:
+                      name: target_column
+                      type: target_type
+                      unique: true
+                      default: default_test
+    source_table:
+        type: object
+        title: test2
+        table:
+            name: test2
+        properties:
+            source_column:
+                column:
+                    name: source_column
+                    type: source_type
+                    unique: true
+                    default: default_test
+                    foreign_key:
+                        update_cascade: true
+                        delete_cascade: true
+                        name: fk_test
+                        target_table: '#/definitions/target_table'
+                        target_column: target_column

@@ -1,0 +1,16 @@
+definitions:
+    test_table:
+        type: object
+        title: test
+        table:
+            name: test
+            index:
+                test_index:
+                    - test_index_column
+        properties:
+            test_not_index_column:
+                column:
+                    name: test_column
+                    type: test_type
+                    unique: true
+                    default: default_test
