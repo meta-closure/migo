@@ -16,7 +16,7 @@ type ForeignKey struct {
 	TargetColumn  Column                 `json:"column"`
 	UpdateCascade bool                   `json:"update_cascade"`
 	DeleteCascade bool                   `json:"delete_cascade"`
-	Raw           map[string]interface{} `json"-"`
+	Raw           map[string]interface{} `json:"-"`
 }
 type ForeignKeys []ForeignKey
 
