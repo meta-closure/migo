@@ -1,7 +1,6 @@
 package migo
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -41,7 +40,7 @@ func NewForeignKey(sourceTable Table, sourceColumn Column) ForeignKey {
 }
 
 func (fk *ForeignKey) read(s schema.Schema) error {
-	if hasNotForeignKey(s) {
+	if !hasForeignKey(s) {
 		return errors.New("foreign not found")
 	}
 
@@ -55,17 +54,27 @@ func (fk *ForeignKey) read(s schema.Schema) error {
 		return errors.New("foreign key: fail to convert type")
 	}
 
-	f := ForeignKey{}
-	b, err := json.Marshal(m)
-	if err != nil {
-		return err
+	if fk.Raw["name"] == nil {
+		return errors.New("name is not found")
 	}
-	if err = json.Unmarshal(b, &f); err != nil {
-		return err
+	fk.Name, ok = fk.Raw["name"].(string)
+	if !ok {
+		return errors.New("convert name to string type")
 	}
 
-	fk.DeleteCascade = f.DeleteCascade
-	fk.UpdateCascade = f.UpdateCascade
+	if fk.Raw["delete_cascade"] != nil {
+		fk.DeleteCascade, ok = fk.Raw["delete_cascade"].(bool)
+		if !ok {
+			return errors.New("convert delete_cascade to bool type")
+		}
+	}
+
+	if fk.Raw["update_cascade"] != nil {
+		fk.DeleteCascade, ok = fk.Raw["update_cascade"].(bool)
+		if !ok {
+			return errors.New("convert update_cascade to bool type")
+		}
+	}
 	return nil
 }
 

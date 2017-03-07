@@ -3,6 +3,7 @@ package migo
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -63,4 +64,19 @@ func (k Key) isUpdatedFrom(target Key) (bool, error) {
 		return false, errors.New("the target key name is wrong")
 	}
 	return !reflect.DeepEqual(k, target), nil
+}
+
+func (k Key) definitionPrimaryKeyString() string {
+	s := []string{}
+	for _, v := range k.Target {
+		s = append(s, v.Name)
+	}
+	return fmt.Sprintf("PRIMARY KEY %s (%s)", k.Name, strings.Join(s, ","))
+}
+func (k Key) definitionIndexString() string {
+	s := []string{}
+	for _, v := range k.Target {
+		s = append(s, v.Name)
+	}
+	return fmt.Sprintf("INDEX %s (%s)", k.Name, strings.Join(s, ","))
 }

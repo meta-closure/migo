@@ -2,7 +2,9 @@ package migo
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -54,4 +56,31 @@ func (c *Column) read(s schema.Schema) error {
 	}
 
 	return nil
+}
+
+func (c Column) definitionString() string {
+	s := []string{c.Name, c.Type}
+	if c.AutoIncrement {
+		s = append(s, "AUTO_INCREMENT")
+	}
+	if c.NotNull {
+		s = append(s, "NOT NULL")
+	}
+	if c.Unique {
+		s = append(s, "UNIQUE")
+	}
+
+	if c.Default != "" && !isDatetime(c.Type) {
+		s = append(s, fmt.Sprintf("DEFAULT '%s'", c.Default))
+	}
+
+	if isDatetime(c.Type) {
+		if c.AutoUpdate {
+			s = append(s, fmt.Sprintf("ON UPDATE CURRENT_TIMESTAMP%s", digit(c.Type)))
+		}
+		if c.Default == "" {
+			s = append(s, fmt.Sprintf("DEFAULT CURRENT_TIMESTAMP%s", digit(c.Type)))
+		}
+	}
+	return strings.Join(s, " ")
 }

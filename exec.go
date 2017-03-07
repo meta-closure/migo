@@ -172,3 +172,4 @@ func NewOperations(currentState, newState State) (Operations, error) {
 
 	return ops, nil
 }
+

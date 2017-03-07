@@ -19,8 +19,9 @@ type child struct {
 }
 
 var (
-	port = 13306
-	DSN  = "root@tcp(127.0.0.1:13306)/"
+	port             = 13306
+	DSN              = "root@tcp(127.0.0.1:13306)/"
+	databaseFilePath = "test/database.yml"
 )
 
 func NewMySQLTest(port int) *mysqltest.MysqldConfig {

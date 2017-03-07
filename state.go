@@ -96,7 +96,7 @@ func NewColumn(id string) Column {
 	return Column{Id: id}
 }
 
-func hasNotForeignKey(s schema.Schema) bool {
+func hasForeignKey(s schema.Schema) bool {
 	if hasNotColumn(s) {
 		return false
 	}
@@ -106,7 +106,7 @@ func hasNotForeignKey(s schema.Schema) bool {
 		return false
 	}
 
-	if m["foreign_key"] == nil {
+	if m["foreign_key"] != nil {
 		return true
 	}
 	return false
@@ -120,40 +120,44 @@ func selectForeingKey(root *hschema.HyperSchema, s State) ([]ForeignKey, error) 
 			continue
 		}
 		for id, column := range v.Properties {
-			if hasNotForeignKey(*column) {
-				continue
-			}
 			c, err := t.selectColumnWithID(id)
 			if err != nil {
-				return nil, err
+				continue
 			}
+			if !hasForeignKey(*column) {
+				continue
+			}
+
 			fk := NewForeignKey(t, c)
 			if err := fk.read(*column); err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "fail to read from id %s column", id)
 			}
 			fks = append(fks, fk)
 		}
 	}
+
 	for k, v := range root.Properties {
 		t, err := s.selectTableWithID(propertiesID(k))
 		if err != nil {
 			continue
 		}
 		for id, column := range v.Properties {
-			if hasNotForeignKey(*column) {
-				continue
-			}
 			c, err := t.selectColumnWithID(id)
 			if err != nil {
-				return nil, err
+				continue
 			}
+			if !hasForeignKey(*column) {
+				continue
+			}
+
 			fk := NewForeignKey(t, c)
 			if err := fk.read(*column); err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "fail to read from id %s column", id)
 			}
 			fks = append(fks, fk)
 		}
 	}
+
 	return fks, nil
 }
 
@@ -181,6 +185,7 @@ func NewStateFromSchema(schema *hschema.HyperSchema) (State, error) {
 		}
 		s.Tables = append(s.Tables, *t)
 	}
+
 	fks, err := selectForeingKey(schema, s)
 	if err != nil {
 		return s, errors.Wrap(err, "searching foreing key")
@@ -220,7 +225,7 @@ func NewStateFromYAML(filePath string) (State, error) {
 		return s, err
 	}
 
-	if err = yaml.Unmarshal(b, s); err != nil {
+	if err = yaml.Unmarshal(b, &s); err != nil {
 		return s, err
 	}
 

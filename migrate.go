@@ -104,8 +104,8 @@ func Run(op MigrateOption) error {
 }
 
 func (db DB) migrate(ops Operations) error {
-	if err := db.exec(ops); err != nil {
-		if rerr := db.rollback(ops); err != nil {
+	if err := db.exec(&ops); err != nil {
+		if rerr := db.rollback(ops); rerr != nil {
 			return errors.Wrapf(rerr, "migrate error with `%s` and recovery failed", err)
 		}
 		return errors.Wrap(err, "migration failed")
@@ -120,12 +120,10 @@ func (db DB) rollback(ops Operations) error {
 	}
 	defer mysql.Close()
 
-	for i := 1; i < i+1; i++ {
-		if _, err = mysql.Exec(ops.Operation[ops.execCount-i].Query()); err != nil {
-			fmt.Printf("FAILED: %s", ops.Operation[ops.execCount-i].Query())
-			fmt.Printf("ERROR:  %s", err)
-			fmt.Println(">>>>>>>> RECOVERY FAILED")
-			return errors.Wrapf(err, "Query: %s", ops.Operation[ops.execCount-i].Query())
+	for i := 1; i < ops.execCount+1; i++ {
+		if _, err = mysql.Exec(ops.Operation[ops.execCount-i].RollBack()); err != nil {
+			fmt.Println(">>>>>>>> RECOVERY FAILED\n")
+			return errors.Wrapf(err, "RollBack: %s", ops.Operation[ops.execCount-i].RollBack())
 		}
 	}
 
@@ -133,7 +131,7 @@ func (db DB) rollback(ops Operations) error {
 	return nil
 }
 
-func (db DB) exec(ops Operations) error {
+func (db DB) exec(ops *Operations) error {
 	mysql, err := sql.Open("mysql", db.FormatDSN())
 	if err != nil {
 		return err
@@ -142,15 +140,13 @@ func (db DB) exec(ops Operations) error {
 
 	for i, op := range ops.Operation {
 		if _, err := mysql.Exec(op.Query()); err != nil {
-			fmt.Printf("FAILED: %s", op.Query())
-			fmt.Printf("ERROR:  %s", err)
-			fmt.Println(">>>>>>>> MIGRATION FAILED")
+			fmt.Println(">>>>>>>> MIGRATION FAILED\n")
 			ops.execCount = i
 			return errors.Wrapf(err, "Query: %s", op.Query())
 		}
 	}
 
-	fmt.Println(">>>>>>>> MIGRATION SUCCEED")
+	fmt.Println(">>>>>>>> MIGRATION SUCCEED\n")
 	return nil
 }
 

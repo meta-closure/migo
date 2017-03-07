@@ -21,6 +21,7 @@ type Records struct {
 	Items []map[string]interface{}
 }
 
+
 func NewRecords(table string, item interface{}) (Records, error) {
 	r := Records{Table: table}
 	qs, ok := item.([]interface{})

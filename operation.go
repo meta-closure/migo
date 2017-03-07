@@ -30,8 +30,15 @@ func (op CreateTable) Query() string {
 	for _, c := range op.Table.Column {
 		cols = append(cols, c.definitionString())
 	}
+	for _, k := range op.Table.PrimaryKey {
+		cols = append(cols, k.definitionPrimaryKeyString())
+	}
+	for _, k := range op.Table.Index {
+		cols = append(cols, k.definitionIndexString())
+	}
 	return fmt.Sprintf("CREATE TABLE %s (%s)ENGINE=innoDB", op.Table.Name, strings.Join(cols, ","))
 }
+
 func (op CreateTable) String() string {
 	return fmt.Sprintf("ADD TABLE: [%s]", op.Table.Name)
 }
@@ -40,39 +47,12 @@ func (op CreateTable) RollBack() string {
 	return NewDropTable(op.Table).Query()
 }
 
-func (c Column) definitionString() string {
-	s := []string{c.Name, c.Type}
-	if c.AutoIncrement {
-		s = append(s, "AUTO_INCREMENT")
-	}
-	if c.NotNull {
-		s = append(s, "NOT NULL")
-	}
-	if c.Unique {
-		s = append(s, "UNIQUE")
-	}
-
-	if c.Default != "" && !isDatetime(c.Type) {
-		s = append(s, fmt.Sprintf("DEFAULT '%s'", c.Default))
-	}
-
-	if isDatetime(c.Type) {
-		if c.AutoUpdate {
-			s = append(s, fmt.Sprintf("ON UPDATE CURRENT_TIMESTAMP%s", digit(c.Type)))
-		}
-		if c.Default == "" {
-			s = append(s, fmt.Sprintf("DEFAULT CURRENT_TIMESTAMP%s", digit(c.Type)))
-		}
-	}
-	return strings.Join(s, " ")
-}
-
 func isDatetime(s string) bool {
 	return len(s) > 8 && s[:8] == "datetime"
 }
 
 func digit(s string) string {
-	return regexp.MustCompile(`\(.+\))`).FindString(s)
+	return regexp.MustCompile(`\(.+\)`).FindString(s)
 }
 
 type DropTable struct {
@@ -314,13 +294,11 @@ func NewAddPrimaryKey(t Table, k Key) AddPrimaryKey {
 func (op AddPrimaryKey) String() string {
 	return fmt.Sprintf("ADD PRIMARY KEY %s IN %s", op.PrimaryKey.Name, op.Table.Name)
 }
+
 func (op AddPrimaryKey) Query() string {
-	s := []string{}
-	for _, v := range op.PrimaryKey.Target {
-		s = append(s, v.Name)
-	}
-	return fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY %s (%s)", op.Table.Name, op.PrimaryKey.Name, strings.Join(s, ","))
+	return fmt.Sprintf("ALTER TABLE %s ADD %s", op.Table.Name, op.PrimaryKey.definitionPrimaryKeyString())
 }
+
 func (op AddPrimaryKey) RollBack() string {
 	return NewDropPrimaryKey(op.Table, op.PrimaryKey).Query()
 }
@@ -340,11 +318,7 @@ func (op AddIndex) String() string {
 	return fmt.Sprintf("ADD INDEX %s IN %s", op.Index.Name, op.Table.Name)
 }
 func (op AddIndex) Query() string {
-	s := []string{}
-	for _, v := range op.Index.Target {
-		s = append(s, v.Name)
-	}
-	return fmt.Sprintf("ALTER TABLE %s ADD INDEX %s (%s)", op.Table.Name, op.Index.Name, strings.Join(s, ","))
+	return fmt.Sprintf("ALTER TABLE %s ADD %s", op.Table.Name, op.Index.definitionIndexString())
 }
 func (op AddIndex) RollBack() string {
 	return NewDropIndex(op.Table, op.Index).Query()

@@ -10,7 +10,6 @@ import (
 const (
 	parentSeedFilePath = "test/foreign_key_test_parent_seed.yml"
 	childSeedFilePath  = "test/foreign_key_test_child_seed.yml"
-	databaseFilePath   = "test/seed_test_database.yml"
 )
 
 func TestSeedWithForeingKey(t *testing.T) {

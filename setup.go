@@ -19,11 +19,14 @@ func Setup(op InitOption) error {
 		return errors.Wrap(err, "parsing db config")
 	}
 	s.DB = *db
+	if err := s.DB.setup(); err != nil {
+		return errors.Wrapf(err, "creating database in %s", s.DB.FormatDSN())
+	}
+
 	if err := s.save(defaultStateFilePath); err != nil {
 		return errors.Wrap(err, "creating initial state file")
 	}
-
-	return s.DB.setup()
+	return nil
 }
 
 func (db DB) setup() error {
