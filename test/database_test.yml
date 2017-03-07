@@ -1,0 +1,11 @@
+default:
+    user: default
+    passwd: test
+    addr: 127.0.0.1:3306
+    dbname: default
+
+other:
+    user: env
+    passwd: test
+    addr: 127.0.0.1:3306
+    dbname: env

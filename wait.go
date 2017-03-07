@@ -19,24 +19,24 @@ func (l Logger) Print(v ...interface{}) {
 	// do nothing
 }
 
-func DbWait(dbpath, env string) error {
-	dbconf, err := NewDb(dbpath, env)
+func Wait(op WaitOption) error {
+	db, err := NewDB(op.ConfigFilePath, op.Environment)
 	if err != nil {
 		return errors.Wrap(err, "Parse db config")
 	}
+	return db.wait()
+}
 
-	dbconf.DBName = ""
-
+func (db DB) wait() error {
 	if err := mysql.SetLogger(Logger{}); err != nil {
 		return errors.Wrap(err, "Can't set logger")
 	}
 
-	sqlconf := NewSql(*dbconf)
-	var db *sql.DB
-	db, err = sql.Open("mysql", sqlconf.DbConf.FormatDSN())
+	mysql, err := sql.Open("mysql", db.FormatDBUnspecifiedDSN())
 	if err != nil {
 		return errors.Wrap(err, "Create mysql connection")
 	}
+	defer mysql.Close()
 
 	fmt.Printf("Waiting for accepting query ")
 	startedAt := time.Now()
@@ -47,14 +47,13 @@ func DbWait(dbpath, env string) error {
 			fmt.Printf("\n")
 			return errors.New("Timeout for waiting")
 		}
-		if _, err := db.Exec(query); err == nil {
+		if _, err := mysql.Exec(query); err == nil {
 			fmt.Printf("\nAccepted\n")
 			break
 		}
 
 		time.Sleep(time.Second)
 	}
-	defer db.Close()
 
 	return nil
 }

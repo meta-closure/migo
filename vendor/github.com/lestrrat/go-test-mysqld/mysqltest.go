@@ -1,11 +1,12 @@
 package mysqltest
 
 import (
+	"bytes"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,33 +17,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // for mysql
 	"github.com/lestrrat/go-tcputil"
+	"github.com/pkg/errors"
 )
-
-// MysqldConfig is used to configure the new mysql instance
-type MysqldConfig struct {
-	BaseDir        string
-	BindAddress    string
-	CopyDataFrom   string
-	DataDir        string
-	PidFile        string
-	Port           int
-	SkipNetworking bool
-	Socket         string
-	TmpDir         string
-
-	AutoStart      int
-	MysqlInstallDb string
-	Mysqld         string
-}
-
-// TestMysqld is the main struct that handles the execution of mysqld
-type TestMysqld struct {
-	Config       *MysqldConfig
-	Command      *exec.Cmd
-	DefaultsFile string
-	Guards       []func()
-	LogFile      string
-}
 
 // NewConfig creates a new MysqldConfig struct with default values
 func NewConfig() *MysqldConfig {
@@ -75,7 +51,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 
 		tempdir, err := ioutil.TempDir("", "mysqltest")
 		if err != nil {
-			return nil, fmt.Errorf("error: Failed to create temporary directory: %s", err)
+			return nil, errors.Errorf("error: Failed to create temporary directory: %s", err)
 		}
 
 		config.BaseDir = tempdir
@@ -129,7 +105,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	if config.Mysqld == "" {
 		fullpath, err := lookMysqldPath()
 		if err != nil {
-			return nil, fmt.Errorf("error: Could not find mysqld: %s", err)
+			return nil, errors.Errorf("error: Could not find mysqld: %s", err)
 		}
 		config.Mysqld = fullpath
 	}
@@ -192,7 +168,7 @@ func (m *TestMysqld) AssertNotRunning() error {
 	if pidfile := m.Config.PidFile; pidfile != "" {
 		_, err := os.Stat(pidfile)
 		if err == nil {
-			return fmt.Errorf("mysqld is already running (%s)", pidfile)
+			return errors.Errorf("mysqld is already running (%s)", pidfile)
 		}
 		if !os.IsNotExist(err) {
 			return err
@@ -224,23 +200,24 @@ func (m *TestMysqld) Setup() error {
 		}
 	}
 
+	// XXX We should probably check for return values here...
+	var buf bytes.Buffer
+	buf.WriteString("[mysqld]\n")
+	fmt.Fprintf(&buf, "datadir=%s\n", config.DataDir)
+	fmt.Fprintf(&buf, "pid-file=%s\n", config.PidFile)
+	if config.SkipNetworking {
+		buf.WriteString("skip-networking\n")
+	} else {
+		fmt.Fprintf(&buf, "port=%d\n", config.Port)
+	}
+	fmt.Fprintf(&buf, "socket=%s\n", config.Socket)
+	fmt.Fprintf(&buf, "tmpdir=%s\n", config.TmpDir)
+
 	file, err := os.OpenFile(m.DefaultsFile, os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		return err
 	}
-
-	// XXX We should probably check for return values here...
-	fmt.Fprint(file, "[mysqld]\n")
-	fmt.Fprintf(file, "datadir=%s\n", config.DataDir)
-	fmt.Fprintf(file, "pid-file=%s\n", config.PidFile)
-	if config.SkipNetworking {
-		fmt.Fprint(file, "skip-networking\n")
-	} else {
-		fmt.Fprintf(file, "port=%d\n", config.Port)
-	}
-	fmt.Fprintf(file, "socket=%s\n", config.Socket)
-	fmt.Fprintf(file, "tmpdir=%s\n", config.TmpDir)
-
+	file.Write(buf.Bytes())
 	file.Sync()
 	file.Close()
 
@@ -335,55 +312,62 @@ func (m *TestMysqld) Start() error {
 		return err
 	}
 
-	m.Command = cmd
-
 	go io.Copy(file, stdoutpipe)
 	go io.Copy(file, stderrpipe)
 
-	c := make(chan bool)
-	go func() {
-		cmd.Run()
-		c <- true
-	}()
+	if err := cmd.Start(); err != nil {
+		return errors.Wrap(err, "error: Failed to launch mysqld")
+	}
 
-	for {
-		if cmd.Process != nil {
-			if _, err = os.FindProcess(cmd.Process.Pid); err == nil {
-				break
-			}
-		}
+	checktimeout := time.NewTimer(20 * time.Second)
+	checktick := time.NewTicker(time.Second)
+	defer checktimeout.Stop()
+	defer checktick.Stop()
 
+	for cmd.Process == nil {
 		select {
-		case <-c:
-			// Fuck, we exited
-			return errors.New("error: Failed to launch mysqld")
-		default:
-			time.Sleep(100 * time.Millisecond)
+		case <-checktimeout.C:
+			if proc := cmd.Process; proc != nil {
+				proc.Kill()
+			}
+			return errors.New("error: Failed to launch mysqld (timeout)")
+		case <-checktick.C:
+			// will force `for cmd.Process != nil` to be
+			// evaluated by bailing out of this select
 		}
 	}
 
 	// Wait until we can connect to the database
-	timeout := time.Now().Add(30 * time.Second)
-	var db *sql.DB
-	for time.Now().Before(timeout) {
-		dsn := m.Datasource("mysql", "root", "", 0)
-		db, err = sql.Open("mysql", dsn)
-		if err == nil {
+	conntimeout := time.NewTimer(30 * time.Second)
+	conntick := time.NewTicker(time.Second)
+	defer conntimeout.Stop()
+	defer conntick.Stop()
+
+	dsn := m.Datasource("mysql", "root", "", 0)
+	for {
+		select {
+		case <-conntimeout.C:
+			if proc := cmd.Process; proc != nil {
+				proc.Kill()
+			}
+			return errors.New("error: timeout reached before we could connect to database")
+		case <-conntick.C:
+			db, err := sql.Open("mysql", dsn)
+			if err != nil {
+				continue
+			}
+
 			var id int
 			row := db.QueryRow("SELECT 1")
-			err = row.Scan(&id)
-			if err == nil {
-				break
+			if err = row.Scan(&id); err != nil {
+				continue
 			}
+			m.Command = cmd
+			return nil
 		}
-		time.Sleep(1 * time.Second)
 	}
 
-	if db == nil {
-		return errors.New("error: Could not connect to database. Server failed to start?")
-	}
-
-	return nil
+	return errors.New("error: Could not connect to database. Server failed to start?")
 }
 
 // ReadLog reads the output log file specified by LogFile and returns its content
@@ -408,6 +392,7 @@ func (m *TestMysqld) ReadLog() ([]byte, error) {
 }
 
 // ConnectString returns the connect string `tcp(...)` or `unix(...)`
+// This method is deprecated, and will be removed in a future version.
 func (m *TestMysqld) ConnectString(port int) string {
 	config := m.Config
 
@@ -424,28 +409,133 @@ func (m *TestMysqld) ConnectString(port int) string {
 	return address
 }
 
-// Datasource creates the appropriate Datasource string that can be passed
-// to sql.Open()
-//    mysqld.Datasource("test", "user", "pass", 0)
-//    mysqld.Datasource("test", "user", "pass", 3306)
-func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int) string {
-	address := m.ConnectString(port)
+// Datasource is a utility function to format the DSN that can be passed
+// to mysqld driver.
+func Datasource(options ...DatasourceOption) string {
+	host := "localhost"
+	socket := ""
+	dbname := "test"
+	user := "root"
+	pass := ""
+	port := 3306
+	proto := "tcp"
+	q := url.Values{}
 
-	if user == "" {
-		user = "root"
+	for _, o := range options {
+		name := o.Name()
+		switch name {
+		case "host":
+			host = o.Value().(string)
+		case "dbname":
+			dbname = o.Value().(string)
+		case "user":
+			user = o.Value().(string)
+		case "password":
+			pass = o.Value().(string)
+		case "proto":
+			proto = o.Value().(string)
+		case "socket":
+			socket = o.Value().(string)
+		case "port":
+			port = o.Value().(int)
+		case "parseTime":
+			q.Add(name, fmt.Sprintf("%t", o.Value().(bool)))
+		}
 	}
 
-	if dbname == "" {
-		dbname = "test"
+	var address string
+	switch proto {
+	case "unix":
+		address = fmt.Sprintf(`unix(%s)`, socket)
+	default: // Ah, ignore cases where proto != "unix" and != "tcp"
+		address = fmt.Sprintf(`tcp(%s:%d)`, host, port)
 	}
 
-	return fmt.Sprintf(
+	s := fmt.Sprintf(
 		"%s:%s@%s/%s",
 		user,
 		pass,
 		address,
 		dbname,
 	)
+
+	if qs := q.Encode(); qs != "" {
+		s = s + "?" + qs
+	}
+	return s
+}
+
+// DSN creates a datasource name string that is appropriate for
+// connecting to the database instance started by TestMysqld.
+//
+// This method respects networking settings and host:port/socket
+// settings, and provide sane defaults for those parameters.
+// If you want to forcefully override them, you still can do so
+// by providing explicit DatasourceOption values
+func (m *TestMysqld) DSN(options ...DatasourceOption) string {
+	var hasSocket bool
+	var hasHost bool
+	var hasPort bool
+	var hasProto bool
+	var proto string
+	for _, o := range options {
+		switch o.Name() {
+		case "proto":
+			hasProto = true
+			proto = o.Value().(string)
+		case "socket":
+			hasSocket = true
+		case "host":
+			hasHost = true
+		case "port":
+			hasPort = true
+		}
+	}
+
+	if !hasProto {
+		if m.Config.SkipNetworking {
+			proto = "unix"
+		} else {
+			proto = "tcp"
+		}
+		options = append(options, WithProto(proto))
+	}
+
+	if proto == "unix" {
+		if !hasSocket {
+			options = append(options, WithSocket(m.Config.Socket))
+		}
+	} else {
+
+		if !hasHost {
+			options = append(options, WithHost(m.Config.BindAddress))
+		}
+
+		if !hasPort {
+			options = append(options, WithPort(m.Config.Port))
+		}
+	}
+
+	return Datasource(options...)
+}
+
+// Datasource is a DEPRECATED method to create a datasource string 
+// that can be passed to sql.Open(). Please consider using `DSN` instead
+func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
+	if user != "" {
+		options = append(options, WithUser(user))
+	}
+	if dbname != "" {
+		options = append(options, WithDbname(dbname))
+	}
+	if pass != "" {
+		options = append(options, WithPassword(pass))
+	}
+	if port != 0 {
+		options = append(options, WithPort(port))
+	}
+
+	return m.DSN(options...)
 }
 
 // Stop explicitly stops the execution of mysqld

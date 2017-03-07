@@ -7,3 +7,4 @@ import:
 - package: github.com/pkg/errors
 - package: github.com/urfave/cli
 - package: github.com/lestrrat/go-test-mysqld
+- package: github.com/go-xorm/xorm

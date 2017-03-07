@@ -1,0 +1,17 @@
+definitions:
+    test:
+        type: object
+        title: test
+        table:
+            name: test
+        properties:
+            column:
+                  column:
+                      not_null: true
+                      name: column
+                      type: type
+                      auto_increment: true
+                      unique: true
+                      default: default_test
+                      not_null: true
+                      auto_update: true

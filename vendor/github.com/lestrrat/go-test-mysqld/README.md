@@ -49,3 +49,34 @@ config.Port = 13306
 // Starts mysqld listening on port 13306
 mysqld, _ := mysqltest.NewMysqld(config)
 ```
+
+# Generating DSN
+
+DSN strings can be generated using the `DSN` method:
+
+```go
+// Use default
+dsn := mysqld.DSN()
+
+// Pass explicit parameters
+dsn := mysqld.DSN(mysqltest.WithUser("foo"), mysqltest.WithPassword("passw0rd!"))
+
+// Tell the mysql driver to parse time values
+dsn := mysqld.DSN(mysqltest.WithParseTime(true))
+
+// ...And pass the dsn to sql.Open
+db, err := sql.Open("mysql", dsn)
+```
+
+Following is a list of possible parameters to `DSN`. I
+
+| Option | Description | Default |
+|:-------|:------------|:--------|
+| mysqltest.WithProto(string)    | Specifies the protocol ("unix" or "tcp")                          | Depends on value of `config.SkipNetworking` |
+| mysqltest.WithSocket(string)   | Specifies the path to the unix socket                             | value of `config.Socket` |
+| mysqltest.WithHost(string)     | Specifies the hostname                                            | value of `config.BindAddress` |
+| mysqltest.WithPort(int)        | Specifies the port number                                         | value of `config.Port` |
+| mysqltest.WithUser(string)     | Specifies the username                                            | `"root"` |
+| mysqltest.WithPassword(string) | Specifies the password                                            | `""` |
+| mysqltest.WithDbname(string)   | Specifies the database name to connect                            | `"test"` |
+| mysqltest.WithParseTime(bool)  | Specifies if mysql driver should parse time values to `time.Time` | `false` |

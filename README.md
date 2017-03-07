@@ -1,4 +1,4 @@
-# Migration tool generaterd from JSON Schema file
+# Migration tool By JSON Schema
 
 ## Install
 
@@ -9,14 +9,13 @@ go get -u github.com/meta-closure/migo/cmd/migo
 ```
 
 ## Usage
-Read a (extended) JSON Schema file and migrate database table status.
+Read the (extended) JSON Schema file and migrate database.
 
 ```sh:
 migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e environment run
 ```
 
-Before migrate, you might check a operation plan what migo would do,
-Plan command enable to see operation list
+With the Plan command you can see the plan what migo will do
 
 ```sh;
 migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e environment plan
@@ -25,8 +24,6 @@ migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e 
 ## Sample Schema Description
 
 ### Database configure Sample
-
-Specify some database config file, such that 
 
 ```yaml:
 default:
@@ -48,18 +45,13 @@ master:
     dbname: db
 
 ```
+migo can read the setting from the specified environment, by default
+it will be "default" environment
+Make DSN(Data Source Name) from database setting to connect your database.
 
-Then migo want to read the configure from the environment that you select, if empty then migo read
-"default" environment.
-Read db tag and create DSN(Data Source Name) to connect your database.
+### Table Configuration Sample
 
-### Table Configure Sample
-
-Migo change a table setting, you can configure a primary key or a index key.
-migo identify each table and column in their hash table key,
-so if you want to change a table name, you just overide name.
-
-primary key and index only specify key name.
+Primary Key and Index need to specify column key name.
 
 
 ```yaml:
@@ -75,13 +67,7 @@ key:
             - index2
 ```
 
-### Column Configure Sample
-
-Read column tag and modify a column setting, set foreign key.
-If you want to use foreign key in using migo, you should set the foreign key name,
-to modify foreign key setting.
-if this table definitions is in definitions or properties, then target_table specification is
-JSON Referencens, in links, then it have extra format, "/link" + Href + (schema|target_schema) 
+### Column Configuration Sample
 
 ```yaml:
 
@@ -89,13 +75,13 @@ column:
     not_null: true
     name: column_sample
     foreign_key:
-        name: fk_identifieir
-        target_table: /link/base/schema
-        target_column: fk_column
-        
+        name: fk_id(should be unique)
+        target_table: #/definition/table/path
+        target_column: column_key
+
 ```
 
-migo can read some config such that 
+migo support some flags.
 
 - auto_increment(bool)
 - auto_update(bool, for datetime or timestamp type column)
@@ -103,10 +89,10 @@ migo can read some config such that
 - unique(bool)
 - default
 
-## How to Init to use migo 
+## How to Setup to use migo
 
-migo have init command that create initial state file and 
-create database if not exist,
+migo have init command, it create initial state file and
+create database if not exist.
 
 ```sh:
 migo -d database.yml -e develop init
@@ -114,7 +100,7 @@ migo -d database.yml -e develop init
 
 ## Seeding
 
-migo have seed command that enable you to insert initial seed record.
+migo have seed command, it enable you to insert initial record.
 for sample description.
 
 ```yaml:
@@ -133,20 +119,14 @@ bar:
 
 ```
 
-then migo convert all data into SQL and insert to DB.
+## Recovery
 
-## Fail Revocery
+If migo fails migration, such that type converting error or irregular operation,
+then migo attempt to recover before database states, execute reverse operation what migo done.
 
-If migo failed a migrate operation, such that type converting error or irregular operation,
-then he attempt to recover before database states, quering reverse operation what migo done.    
+## Test
 
-## Rollback
-
-If you might to Rollback. you just run specify a previous JSON Schema file or State file.
-
-## test
-
-Migo's test is need MySQL docker container. 
+Need MySQL docker container.
 
 ```
 ./bin/test

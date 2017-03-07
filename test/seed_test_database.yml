@@ -1,5 +1,0 @@
-test:
-    user: root
-    passwd: ''
-    addr: 127.0.0.1:13306
-    dbname: test

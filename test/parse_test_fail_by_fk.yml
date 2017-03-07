@@ -1,0 +1,37 @@
+definitions:
+    not_target_table:
+        type: object
+        title: test
+        table:
+            name: test
+            primary_key:
+                test_pk:
+                    - target_column
+        properties:
+            target_column:
+                column:
+                    not_null: true
+                    name: target_column
+                    type: target_type
+                    auto_increment: true
+                    unique: true
+                    auto_update: true
+                    default: default_test
+    source_table:
+        type: object
+        title: test
+        table:
+            name: test
+        properties:
+            source_column:
+                column:
+                    name: source_column
+                    type: source_type
+                    unique: true
+                    default: default_test
+                    foreign_key:
+                        update_cascade: true
+                        delete_cascade: true
+                        name: fk_test
+                        target_table: '#/definitions/target_table'
+                        target_column: target_column

@@ -1,38 +1,42 @@
-hash: 5072f70ffa5450e99d370eeb2ff02996983cbd0eb793304e8a660d5096f23c3d
-updated: 2016-10-17T17:19:54.118304469+09:00
+hash: ef8024ac4026765afe4b84ffeb76472c5460a1ccfcd41310b4a1630a5f101e99
+updated: 2017-03-07T15:54:50.003006946+09:00
 imports:
-- name: github.com/cloudfoundry-incubator/candiedyaml
-  version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
 - name: github.com/davecgh/go-spew
-  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
 - name: github.com/ghodss/yaml
-  version: aa0c862057666179de291b67d9f093d12b5a8473
+  version: 04f313413ffd65ce25f2541bfd2b2ceec5c0908c
 - name: github.com/go-sql-driver/mysql
-  version: 0b58b37b664c21f3010e836f1b931e1d0b0b0685
+  version: 2e00b5cd70399450106cec6431c2e2ce3cae5034
+- name: github.com/go-xorm/xorm
+  version: bc9732226411dc0a2d2f04afee13cd2ef368630d
 - name: github.com/lestrrat/go-jshschema
   version: 4514acd168a63041862eb3d223a09a789cae6b3b
 - name: github.com/lestrrat/go-jspointer
   version: f4881e611bdbe9fb413a7780721ef8400a1f2341
 - name: github.com/lestrrat/go-jsref
-  version: e452c7b5801d1c6494c9e7e0cbc7498c0f88dfd1
+  version: 50df7b2d07d799426a9ac43fa24bdb4785f72a54
   subpackages:
   - provider
 - name: github.com/lestrrat/go-jsschema
-  version: b09d7650b822d2ea3dc83d5091a5e2acd8330051
+  version: a6a42341b50d8d7e2a733db922eefaa756321021
 - name: github.com/lestrrat/go-pdebug
   version: 2e6eaaa5717f81bda41d27070d3c966f40a1e75f
 - name: github.com/lestrrat/go-structinfo
   version: f74c056fe41f860aa6264478c664a6fff8a64298
 - name: github.com/lestrrat/go-test-mysqld
-  version: 62b3bee29f50d605e6c2958cec1eabdd6b1ce21d
+  version: efcad5e3def274f89483d96eec81e48f683ecd6e
 - name: github.com/pkg/errors
-  version: a887431f7f6ef7687b556dbf718d9f351d4858a0
+  version: bfd5150e4e41705ded2129ec33379de1cb90b513
 - name: github.com/urfave/cli
-  version: d53eb991652b1d438abdd34ce4bfa3ef1539108e
+  version: 9e5b04886c4bfee2ceba1465b8121057355c4e53
 - name: gopkg.in/yaml.v2
-  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+  version: a3f3340b5840cee44f372bddb5880fcbc419b46a
 testImports:
+- name: github.com/go-xorm/builder
+  version: c6e604e9c7b7461715091e14ad0c242ec44c26e4
+- name: github.com/go-xorm/core
+  version: 7daacb215ed03af093a72e0af32a5fe79458613d
 - name: github.com/lestrrat/go-tcputil
   version: 3cae7c8432aeb817399f001e0db3f5bb04e8b8a6
