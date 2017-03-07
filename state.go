@@ -92,10 +92,6 @@ func hasNotColumn(s schema.Schema) bool {
 	return false
 }
 
-func NewColumn(id string) Column {
-	return Column{Id: id}
-}
-
 func hasForeignKey(s schema.Schema) bool {
 	if hasNotColumn(s) {
 		return false

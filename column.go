@@ -35,6 +35,10 @@ func (c Columns) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 
+func NewColumn(id string) Column {
+	return Column{Id: id}
+}
+
 func (c Column) isUpdatedFrom(target Column) (bool, error) {
 	if c.Id != target.Id {
 		return false, errors.New("the target column ID is wrong")

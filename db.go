@@ -21,15 +21,6 @@ type DatabaseConfigure struct {
 	Config map[string]*DB
 }
 
-func (c DatabaseConfigure) hasEnv(env string) bool {
-	for k := range c.Config {
-		if k == env {
-			return true
-		}
-	}
-	return false
-}
-
 func NewDB(filePath, env string) (*DB, error) {
 	c, err := NewDatabaseConfigure(filePath)
 	if err != nil {
@@ -66,6 +57,15 @@ func NewDatabaseConfigure(filePath string) (DatabaseConfigure, error) {
 	}
 
 	return DatabaseConfigure{Config: c}, nil
+}
+
+func (c DatabaseConfigure) hasEnv(env string) bool {
+	for k := range c.Config {
+		if k == env {
+			return true
+		}
+	}
+	return false
 }
 
 func (db DB) FormatDSN() string {
