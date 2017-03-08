@@ -9,10 +9,10 @@ import (
 	"github.com/meta-closure/migo"
 )
 
-func TestSetup(t *testing.T) {
-	if err := migo.Setup(migo.InitOption{
-		ConfigFilePath: databaseFilePath,
-		Environment:    "test",
+func TestInit(t *testing.T) {
+	if err := migo.Init(migo.InitOption{
+		ConfigFile:  databaseFilePath,
+		Environment: "test",
 	}); err != nil {
 		t.Fatalf("fail to setup: %s", err)
 	}

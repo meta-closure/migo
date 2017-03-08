@@ -19,14 +19,14 @@ func (op MigrateOption) isJSONFormat() bool {
 func ReadSchema(op MigrateOption) (*hschema.HyperSchema, error) {
 	h := hschema.New()
 	if op.isYAMLFormat() {
-		if err := readYAMLFormatSchema(h, op.SchemaFilePath); err != nil {
+		if err := readYAMLFormatSchema(h, op.SchemaFile); err != nil {
 			return h, err
 		}
 		return h, nil
 	}
 
 	if op.isJSONFormat() {
-		if err := readJSONFormatSchema(h, op.SchemaFilePath); err != nil {
+		if err := readJSONFormatSchema(h, op.SchemaFile); err != nil {
 			return h, err
 		}
 		return h, nil
@@ -36,12 +36,12 @@ func ReadSchema(op MigrateOption) (*hschema.HyperSchema, error) {
 }
 
 func Plan(op MigrateOption) error {
-	db, err := NewDB(op.ConfigFilePath, op.Environment)
+	db, err := NewDB(op.ConfigFile, op.Environment)
 	if err != nil {
 		return err
 	}
 
-	old, err := NewStateFromYAML(op.StateFilePath)
+	old, err := NewStateFromYAML(op.StateFile)
 	if err != nil {
 		return errors.Wrap(err, "State YAML file parse error")
 	}
@@ -55,23 +55,23 @@ func Plan(op MigrateOption) error {
 	if err != nil {
 		return errors.Wrap(err, "parsing state from hyper-schema")
 	}
-	new.DB = *db
+	new.DB = db
 
 	ops, err := NewOperations(old, new)
 	if err != nil {
 		return errors.Wrap(err, "creating requests")
 	}
-	Announce(ops, *db)
+	Announce(ops, db)
 	return nil
 }
 
 func Run(op MigrateOption) error {
-	db, err := NewDB(op.ConfigFilePath, op.Environment)
+	db, err := NewDB(op.ConfigFile, op.Environment)
 	if err != nil {
 		return err
 	}
 
-	old, err := NewStateFromYAML(op.StateFilePath)
+	old, err := NewStateFromYAML(op.StateFile)
 	if err != nil {
 		return errors.Wrap(err, "State YAML file parse error")
 	}
@@ -85,19 +85,19 @@ func Run(op MigrateOption) error {
 	if err != nil {
 		return errors.Wrap(err, "parsing state from hyper-schema")
 	}
-	new.DB = *db
+	new.DB = db
 
 	ops, err := NewOperations(old, new)
 	if err != nil {
 		return errors.Wrap(err, "creating requests")
 	}
 
-	Announce(ops, *db)
+	Announce(ops, db)
 	if err := db.migrate(ops); err != nil {
 		return err
 	}
 
-	if err = new.save(op.StateFilePath); err != nil {
+	if err = new.save(op.StateFile); err != nil {
 		return errors.Wrap(err, "saving state file")
 	}
 	return nil

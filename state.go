@@ -24,7 +24,7 @@ func NewState() State {
 	}
 }
 
-func (s State) selectForeignKeyWithSourceTableId(id string) []ForeignKey {
+func (s State) findForeignKeyWithSourceTableId(id string) []ForeignKey {
 	fks := []ForeignKey{}
 	for _, fk := range s.ForeignKey {
 		if fk.SourceTable.Id == id {
@@ -34,7 +34,7 @@ func (s State) selectForeignKeyWithSourceTableId(id string) []ForeignKey {
 	return fks
 }
 
-func (s State) selectForeignKeyWithSource(tid, cid string) []ForeignKey {
+func (s State) findForeignKeyWithSource(tid, cid string) []ForeignKey {
 	fks := []ForeignKey{}
 	for _, fk := range s.ForeignKey {
 		if fk.SourceColumn.Id == cid && fk.SourceTable.Id == tid {
@@ -44,7 +44,7 @@ func (s State) selectForeignKeyWithSource(tid, cid string) []ForeignKey {
 	return fks
 }
 
-func (s State) selectForeignKeyWithTarget(tid, cid string) []ForeignKey {
+func (s State) findForeignKeyWithTarget(tid, cid string) []ForeignKey {
 	included := []ForeignKey{}
 	for _, fk := range s.ForeignKey {
 		if fk.TargetColumn.Id == cid && fk.TargetTable.Id == tid {
@@ -54,7 +54,7 @@ func (s State) selectForeignKeyWithTarget(tid, cid string) []ForeignKey {
 	return included
 }
 
-func readYAMLFormatSchema(h *hschema.HyperSchema, filePath string) error {
+func readYAMLFormatSchema(root *hschema.HyperSchema, filePath string) error {
 	b, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return errors.Wrap(err, "YAML file open error")
@@ -66,38 +66,38 @@ func readYAMLFormatSchema(h *hschema.HyperSchema, filePath string) error {
 		return errors.Wrap(err, "YAML file parse error")
 	}
 
-	h.Extract(y)
+	root.Extract(y)
 	return nil
 }
 
-func readJSONFormatSchema(h *hschema.HyperSchema, filePath string) error {
-	h, err := hschema.ReadFile(filePath)
+func readJSONFormatSchema(root *hschema.HyperSchema, filePath string) error {
+	root, err := hschema.ReadFile(filePath)
 	if err != nil {
 		return errors.Wrap(err, "JSON file parse error")
 	}
 	return nil
 }
 
-func hasNotTable(s *schema.Schema) bool {
-	if s.Extras["table"] != nil {
+func hasNotTable(schema *schema.Schema) bool {
+	if schema.Extras["table"] != nil {
 		return false
 	}
 	return true
 }
 
-func hasNotColumn(s schema.Schema) bool {
-	if s.Extras["column"] == nil {
+func hasNotColumn(schema schema.Schema) bool {
+	if schema.Extras["column"] == nil {
 		return true
 	}
 	return false
 }
 
-func hasForeignKey(s schema.Schema) bool {
-	if hasNotColumn(s) {
+func hasForeignKey(schema schema.Schema) bool {
+	if hasNotColumn(schema) {
 		return false
 	}
 
-	m, ok := s.Extras["column"].(map[string]interface{})
+	m, ok := schema.Extras["column"].(map[string]interface{})
 	if !ok {
 		return false
 	}
@@ -108,15 +108,15 @@ func hasForeignKey(s schema.Schema) bool {
 	return false
 }
 
-func selectForeingKey(root *hschema.HyperSchema, s State) ([]ForeignKey, error) {
+func findForeingKey(root *hschema.HyperSchema, s State) ([]ForeignKey, error) {
 	fks := []ForeignKey{}
 	for k, v := range root.Definitions {
-		t, err := s.selectTableWithID(definitonsID(k))
+		t, err := s.findTableWithID(definitonsID(k))
 		if err != nil {
 			continue
 		}
 		for id, column := range v.Properties {
-			c, err := t.selectColumnWithID(id)
+			c, err := t.findColumnWithID(id)
 			if err != nil {
 				continue
 			}
@@ -133,12 +133,12 @@ func selectForeingKey(root *hschema.HyperSchema, s State) ([]ForeignKey, error) 
 	}
 
 	for k, v := range root.Properties {
-		t, err := s.selectTableWithID(propertiesID(k))
+		t, err := s.findTableWithID(propertiesID(k))
 		if err != nil {
 			continue
 		}
 		for id, column := range v.Properties {
-			c, err := t.selectColumnWithID(id)
+			c, err := t.findColumnWithID(id)
 			if err != nil {
 				continue
 			}
@@ -157,10 +157,10 @@ func selectForeingKey(root *hschema.HyperSchema, s State) ([]ForeignKey, error) 
 	return fks, nil
 }
 
-func NewStateFromSchema(schema *hschema.HyperSchema) (State, error) {
+func NewStateFromSchema(root *hschema.HyperSchema) (State, error) {
 	var err error
 	s := NewState()
-	for k, v := range schema.Definitions {
+	for k, v := range root.Definitions {
 		if hasNotTable(v) {
 			continue
 		}
@@ -171,7 +171,7 @@ func NewStateFromSchema(schema *hschema.HyperSchema) (State, error) {
 		s.Tables = append(s.Tables, *t)
 	}
 
-	for k, v := range schema.Properties {
+	for k, v := range root.Properties {
 		if hasNotTable(v) {
 			continue
 		}
@@ -182,7 +182,7 @@ func NewStateFromSchema(schema *hschema.HyperSchema) (State, error) {
 		s.Tables = append(s.Tables, *t)
 	}
 
-	fks, err := selectForeingKey(schema, s)
+	fks, err := findForeingKey(root, s)
 	if err != nil {
 		return s, errors.Wrap(err, "searching foreing key")
 	}
@@ -240,7 +240,7 @@ func (s State) save(filePath string) error {
 	return nil
 }
 
-func (s State) selectTableWithID(id string) (Table, error) {
+func (s State) findTableWithID(id string) (Table, error) {
 	for _, t := range s.Tables {
 		if t.Id == id {
 			return t, nil
@@ -250,13 +250,13 @@ func (s State) selectTableWithID(id string) (Table, error) {
 }
 
 func (s State) hasTable(t Table) bool {
-	if _, err := s.selectTableWithID(t.Id); err != nil {
+	if _, err := s.findTableWithID(t.Id); err != nil {
 		return false
 	}
 	return true
 }
 
-func (s State) selectTablesNotIn(target State) ([]Table, error) {
+func (s State) findTablesNotIn(target State) ([]Table, error) {
 	filterd := []Table{}
 	for _, t := range s.Tables {
 		if !target.hasTable(t) {
@@ -267,7 +267,7 @@ func (s State) selectTablesNotIn(target State) ([]Table, error) {
 	return filterd, nil
 }
 
-func (s State) selectTablesIn(target State) ([]Table, error) {
+func (s State) findTablesIn(target State) ([]Table, error) {
 	filterd := []Table{}
 	for _, t := range s.Tables {
 		if target.hasTable(t) {

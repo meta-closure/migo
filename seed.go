@@ -21,19 +21,18 @@ type Records struct {
 	Items []map[string]interface{}
 }
 
-
-func NewRecords(table string, item interface{}) (Records, error) {
+func NewRecords(table string, items interface{}) (Records, error) {
 	r := Records{Table: table}
-	qs, ok := item.([]interface{})
+	qs, ok := items.([]interface{})
 	if !ok {
-		return Records{}, errors.New("fail to type convert from interface{} to []interface{}")
+		return Records{}, fmt.Errorf("fail to convert []interface{} type from %s", items)
 	}
 
 	m := make([]map[string]interface{}, len(qs))
 	for i, q := range qs {
 		item, ok := q.(map[string]interface{})
 		if !ok {
-			return Records{}, errors.New("fail to type convert from interface{} to map[string]interface{}")
+			return Records{}, fmt.Errorf("fail to convert map[string]interface{} type from %s", q)
 		}
 		m[i] = item
 	}
@@ -43,7 +42,7 @@ func NewRecords(table string, item interface{}) (Records, error) {
 
 func Seed(op SeedOption) error {
 
-	b, err := ioutil.ReadFile(op.RecordFilePath)
+	b, err := ioutil.ReadFile(op.RecordFile)
 	if err != nil {
 		return errors.Wrap(err, "opening seed file")
 	}
@@ -63,7 +62,7 @@ func Seed(op SeedOption) error {
 		rs = append(rs, r)
 	}
 
-	db, err := NewDB(op.ConfigFilePath, op.Environment)
+	db, err := NewDB(op.ConfigFile, op.Environment)
 	if err != nil {
 		return err
 	}

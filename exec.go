@@ -24,7 +24,7 @@ func (ops *Operations) UpdateTable(currentTable, newTable Table) error {
 
 	pk := []Key{}
 	for _, k := range newTable.PrimaryKey {
-		_, err := Table{PrimaryKey: pk}.selectPrimaryKeyWithName(k.Name)
+		_, err := Table{PrimaryKey: pk}.findPrimaryKeyWithName(k.Name)
 		if err == nil {
 			return fmt.Errorf("primary key %s is not unique", k.Name)
 		}
@@ -33,7 +33,7 @@ func (ops *Operations) UpdateTable(currentTable, newTable Table) error {
 
 	idx := []Key{}
 	for _, k := range newTable.Index {
-		_, err := Table{Index: idx}.selectIndexWithName(k.Name)
+		_, err := Table{Index: idx}.findIndexWithName(k.Name)
 		if err == nil {
 			return fmt.Errorf("index %s is not unique", k.Name)
 		}
@@ -73,7 +73,7 @@ func (ops *Operations) UpdateTable(currentTable, newTable Table) error {
 			return errors.New("index's target is should not be empty")
 		}
 
-		old, err := currentTable.selectIndexWithName(k.Name)
+		old, err := currentTable.findIndexWithName(k.Name)
 		if err != nil {
 			ops.Operation = append(ops.Operation, NewAddIndex(newTable, k))
 			continue
@@ -93,7 +93,7 @@ func (ops *Operations) UpdateTable(currentTable, newTable Table) error {
 			return errors.New("primary key's target is should not be empty")
 		}
 
-		old, err := currentTable.selectPrimaryKeyWithName(k.Name)
+		old, err := currentTable.findPrimaryKeyWithName(k.Name)
 		if err != nil {
 			ops.Operation = append(ops.Operation, NewAddPrimaryKey(newTable, k))
 			continue
@@ -109,7 +109,7 @@ func (ops *Operations) UpdateTable(currentTable, newTable Table) error {
 	}
 
 	for _, c := range newTable.Column {
-		old, err := currentTable.selectColumnWithID(c.Id)
+		old, err := currentTable.findColumnWithID(c.Id)
 		if err != nil {
 			continue
 		}
@@ -126,7 +126,7 @@ func (ops *Operations) DropTables(ts []Table) error {
 	return nil
 }
 
-func (ops *Operations) CreateTables(s State, ts []Table) error {
+func (ops *Operations) CreateTables(ts []Table) error {
 	for _, t := range ts {
 		ops.Operation = append(ops.Operation, NewCreateTable(t))
 	}
@@ -139,7 +139,7 @@ func NewOperations(currentState, newState State) (Operations, error) {
 		ops.Operation = append(ops.Operation, NewDropForeignKey(fk))
 	}
 
-	ts, err := currentState.selectTablesNotIn(newState)
+	ts, err := currentState.findTablesNotIn(newState)
 	if err != nil {
 		return ops, err
 	}
@@ -147,17 +147,17 @@ func NewOperations(currentState, newState State) (Operations, error) {
 		return ops, err
 	}
 
-	ts, err = newState.selectTablesNotIn(currentState)
+	ts, err = newState.findTablesNotIn(currentState)
 	if err != nil {
 		return ops, err
 	}
-	if err := ops.CreateTables(newState, ts); err != nil {
+	if err := ops.CreateTables(ts); err != nil {
 		return ops, err
 	}
 
-	ts, err = newState.selectTablesIn(currentState)
+	ts, err = newState.findTablesIn(currentState)
 	for _, t := range ts {
-		s, err := currentState.selectTableWithID(t.Id)
+		s, err := currentState.findTableWithID(t.Id)
 		if err != nil {
 			continue
 		}
@@ -172,4 +172,3 @@ func NewOperations(currentState, newState State) (Operations, error) {
 
 	return ops, nil
 }
-

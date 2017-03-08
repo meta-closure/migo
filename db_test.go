@@ -60,7 +60,7 @@ func TestNewDB(t *testing.T) {
 			continue
 		}
 
-		if !reflect.DeepEqual(db, &c.expectedDB) {
+		if !reflect.DeepEqual(db, c.expectedDB) {
 			t.Errorf("in %s, expected DB is %+v, but actual %+v", c.spec, c.expectedDB, db)
 		}
 	}

@@ -19,32 +19,32 @@ func TestNewStateFromSchema(t *testing.T) {
 	cases := []Case{
 		{
 			input: migo.MigrateOption{
-				SchemaFilePath: "./test/parse_test_fail_by_index.yml",
-				FormatType:     "yaml",
+				SchemaFile: "./test/parse_test_fail_by_index.yml",
+				FormatType: "yaml",
 			},
 			spec:      "incorrect index setting",
 			isSuccess: false,
 		},
 		{
 			input: migo.MigrateOption{
-				SchemaFilePath: "./test/parse_test_fail_by_pk.yml",
-				FormatType:     "yaml",
+				SchemaFile: "./test/parse_test_fail_by_pk.yml",
+				FormatType: "yaml",
 			},
 			spec:      "incorrect primary key setting",
 			isSuccess: false,
 		},
 		{
 			input: migo.MigrateOption{
-				SchemaFilePath: "./test/parse_test_fail_by_fk.yml",
-				FormatType:     "yaml",
+				SchemaFile: "./test/parse_test_fail_by_fk.yml",
+				FormatType: "yaml",
 			},
 			spec:      "incorrect foreign key setting",
 			isSuccess: false,
 		},
 		{
 			input: migo.MigrateOption{
-				SchemaFilePath: "./test/parse_test_column.yml",
-				FormatType:     "yaml",
+				SchemaFile: "./test/parse_test_column.yml",
+				FormatType: "yaml",
 			},
 			expectedState: migo.State{
 				Tables: []migo.Table{
@@ -71,8 +71,8 @@ func TestNewStateFromSchema(t *testing.T) {
 		},
 		{
 			input: migo.MigrateOption{
-				SchemaFilePath: "./test/parse_test_fk.yml",
-				FormatType:     "yaml",
+				SchemaFile: "./test/parse_test_fk.yml",
+				FormatType: "yaml",
 			},
 			expectedState: migo.State{
 				Tables: []migo.Table{
@@ -183,8 +183,8 @@ func TestNewStateFromSchema(t *testing.T) {
 		},
 		{
 			input: migo.MigrateOption{
-				SchemaFilePath: "./test/parse_test_pk.yml",
-				FormatType:     "yaml",
+				SchemaFile: "./test/parse_test_pk.yml",
+				FormatType: "yaml",
 			},
 			expectedState: migo.State{
 				Tables: []migo.Table{
@@ -222,8 +222,8 @@ func TestNewStateFromSchema(t *testing.T) {
 		},
 		{
 			input: migo.MigrateOption{
-				SchemaFilePath: "./test/parse_test_index.yml",
-				FormatType:     "yaml",
+				SchemaFile: "./test/parse_test_index.yml",
+				FormatType: "yaml",
 			},
 			expectedState: migo.State{
 				Tables: []migo.Table{
@@ -264,7 +264,7 @@ func TestNewStateFromSchema(t *testing.T) {
 	for _, c := range cases {
 		h, err := migo.ReadSchema(c.input)
 		if err != nil {
-			t.Errorf("in %s, fail to read %s path file because %s", c.spec, c.input.SchemaFilePath, err)
+			t.Errorf("in %s, fail to read %s path file because %s", c.spec, c.input.SchemaFile, err)
 			continue
 		}
 

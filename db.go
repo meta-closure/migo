@@ -18,16 +18,16 @@ type DB struct {
 }
 
 type DatabaseConfigure struct {
-	Config map[string]*DB
+	Config map[string]DB
 }
 
-func NewDB(filePath, env string) (*DB, error) {
+func NewDB(filePath, env string) (DB, error) {
 	c, err := NewDatabaseConfigure(filePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading database config")
+		return DB{}, errors.Wrap(err, "reading database config")
 	}
 	if !c.hasEnv(env) {
-		return nil, fmt.Errorf("%s is not in database config", env)
+		return DB{}, fmt.Errorf("%s is not in database config", env)
 	}
 	return c.Config[env], nil
 }
@@ -43,7 +43,7 @@ func NewDatabaseConfigure(filePath string) (DatabaseConfigure, error) {
 		return DatabaseConfigure{}, errors.Wrap(err, "YAML file parse error")
 	}
 
-	c := map[string]*DB{}
+	c := map[string]DB{}
 	for k, v := range m {
 		b, err := json.Marshal(v)
 		if err != nil {
@@ -53,7 +53,7 @@ func NewDatabaseConfigure(filePath string) (DatabaseConfigure, error) {
 		if err := json.Unmarshal(b, &db); err != nil {
 			return DatabaseConfigure{}, err
 		}
-		c[k] = &db
+		c[k] = db
 	}
 
 	return DatabaseConfigure{Config: c}, nil

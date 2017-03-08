@@ -40,17 +40,17 @@ func TestSeedWithForeingKey(t *testing.T) {
 	}()
 
 	if err := migo.Seed(migo.SeedOption{
-		RecordFilePath: childSeedFilePath,
-		ConfigFilePath: databaseFilePath,
-		Environment:    "test",
+		RecordFile:  childSeedFilePath,
+		ConfigFile:  databaseFilePath,
+		Environment: "test",
 	}); err != nil {
 		t.Fatalf("fail to seed child table records: %s", err)
 	}
 
 	if err := migo.Seed(migo.SeedOption{
-		RecordFilePath: parentSeedFilePath,
-		ConfigFilePath: databaseFilePath,
-		Environment:    "test",
+		RecordFile:  parentSeedFilePath,
+		ConfigFile:  databaseFilePath,
+		Environment: "test",
 	}); err != nil {
 		t.Fatalf("fail to seed parent table records: %s", err)
 	}
