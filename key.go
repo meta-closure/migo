@@ -27,22 +27,23 @@ func (k Keys) Swap(i, j int) {
 	k[i], k[j] = k[j], k[i]
 }
 
-func NewKey(s string) Key {
-	return Key{Name: s}
+func NewKey(name string) Key {
+	return Key{Name: name}
 }
 
-func keyList(t Table, i interface{}) (Columns, error) {
-	m, ok := i.([]interface{})
+func targetList(t Table, keyTarget interface{}) (Columns, error) {
+	m, ok := keyTarget.([]interface{})
 	if !ok {
-		return nil, errors.New("fail to convert []interface{} type")
+		return nil, fmt.Errorf("fail to convert []interface{} type from %s", keyTarget)
 	}
+
 	targets := Columns{}
 	for _, v := range m {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("fail to convert string type")
+			return nil, fmt.Errorf("fail to convert string type from %s", v)
 		}
-		c, err := t.selectColumnWithID(s)
+		c, err := t.findColumnWithID(s)
 		if err != nil {
 			return nil, fmt.Errorf("fail to searching column in table %s", t.Name)
 		}
@@ -66,14 +67,14 @@ func (k Key) isUpdatedFrom(target Key) (bool, error) {
 	return !reflect.DeepEqual(k, target), nil
 }
 
-func (k Key) definitionPrimaryKeyString() string {
+func (k Key) queryAsPrimaryKey() string {
 	s := []string{}
 	for _, v := range k.Target {
 		s = append(s, v.Name)
 	}
 	return fmt.Sprintf("PRIMARY KEY %s (%s)", k.Name, strings.Join(s, ","))
 }
-func (k Key) definitionIndexString() string {
+func (k Key) queryAsIndex() string {
 	s := []string{}
 	for _, v := range k.Target {
 		s = append(s, v.Name)

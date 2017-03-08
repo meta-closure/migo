@@ -86,7 +86,7 @@ func (fk *ForeignKey) resolve(s State) error {
 	if !ok {
 		return fmt.Errorf("%s have not string type", fk.Raw["target_table"])
 	}
-	t, err := s.selectTableWithID(str)
+	t, err := s.findTableWithID(str)
 	if err != nil {
 		return fmt.Errorf("JSON Path %s table is not found", fk.Raw["target_table"])
 	}
@@ -99,7 +99,7 @@ func (fk *ForeignKey) resolve(s State) error {
 	if !ok {
 		return fmt.Errorf("%s have not string type", fk.Raw["target_column"])
 	}
-	c, err := t.selectColumnWithID(str)
+	c, err := t.findColumnWithID(str)
 	if err != nil {
 		return fmt.Errorf("column %s in table %s is not found", fk.Raw["target_column"], t.Name)
 	}

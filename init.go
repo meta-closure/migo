@@ -8,22 +8,22 @@ import (
 )
 
 const (
-	defaultStateFilePath = "./database_state.yml"
+	defaultStateFile = "./database_state.yml"
 )
 
-func Setup(op InitOption) error {
+func Init(op InitOption) error {
 	var err error
 	s := NewState()
-	db, err := NewDB(op.ConfigFilePath, op.Environment)
+	db, err := NewDB(op.ConfigFile, op.Environment)
 	if err != nil {
 		return errors.Wrap(err, "parsing db config")
 	}
-	s.DB = *db
+	s.DB = db
 	if err := s.DB.setup(); err != nil {
 		return errors.Wrapf(err, "creating database in %s", s.DB.FormatDSN())
 	}
 
-	if err := s.save(defaultStateFilePath); err != nil {
+	if err := s.save(defaultStateFile); err != nil {
 		return errors.Wrap(err, "creating initial state file")
 	}
 	return nil

@@ -130,7 +130,7 @@ func Init(c *cli.Context) error {
 		return errors.Wrap(err, "parsing option")
 	}
 
-	if err := migo.Setup(op); err != nil {
+	if err := migo.Init(op); err != nil {
 		return errors.Wrap(err, "INIT")
 	}
 	return nil

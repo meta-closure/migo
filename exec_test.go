@@ -266,7 +266,7 @@ func TestCreateTables(t *testing.T) {
 	}
 	for _, c := range cases {
 		op := migo.Operations{}
-		err := op.CreateTables(c.input.state, c.input.tables)
+		err := op.CreateTables(c.input.tables)
 
 		if !c.isSuccess && err == nil {
 			t.Errorf("in %s, error is expected but null", c.spec)

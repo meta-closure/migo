@@ -20,7 +20,7 @@ func (l Logger) Print(v ...interface{}) {
 }
 
 func Wait(op WaitOption) error {
-	db, err := NewDB(op.ConfigFilePath, op.Environment)
+	db, err := NewDB(op.ConfigFile, op.Environment)
 	if err != nil {
 		return errors.Wrap(err, "Parse db config")
 	}

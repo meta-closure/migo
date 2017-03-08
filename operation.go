@@ -28,13 +28,13 @@ func NewCreateTable(t Table) Operation {
 func (op CreateTable) Query() string {
 	cols := []string{}
 	for _, c := range op.Table.Column {
-		cols = append(cols, c.definitionString())
+		cols = append(cols, c.query())
 	}
 	for _, k := range op.Table.PrimaryKey {
-		cols = append(cols, k.definitionPrimaryKeyString())
+		cols = append(cols, k.queryAsPrimaryKey())
 	}
 	for _, k := range op.Table.Index {
-		cols = append(cols, k.definitionIndexString())
+		cols = append(cols, k.queryAsIndex())
 	}
 	return fmt.Sprintf("CREATE TABLE %s (%s)ENGINE=innoDB", op.Table.Name, strings.Join(cols, ","))
 }
@@ -204,7 +204,7 @@ func (op AddColumn) String() string {
 	return fmt.Sprintf("ADD COLUMN [%s] IN [%s]", op.Column.Name, op.Table.Name)
 }
 func (op AddColumn) Query() string {
-	return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", op.Table.Name, op.Column.definitionString())
+	return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", op.Table.Name, op.Column.query())
 }
 func (op AddColumn) RollBack() string {
 	return NewDropColumn(op.Table, op.Column).Query()
@@ -231,7 +231,7 @@ func (op UpdateColumn) Query() string {
 	return fmt.Sprintf("ALTER TABLE %s CHANGE COLUMN %s %s",
 		op.Table.Name,
 		op.CurrentColumn.Name,
-		op.NewColumn.definitionString())
+		op.NewColumn.query())
 }
 
 func (op UpdateColumn) RollBack() string {
@@ -296,7 +296,7 @@ func (op AddPrimaryKey) String() string {
 }
 
 func (op AddPrimaryKey) Query() string {
-	return fmt.Sprintf("ALTER TABLE %s ADD %s", op.Table.Name, op.PrimaryKey.definitionPrimaryKeyString())
+	return fmt.Sprintf("ALTER TABLE %s ADD %s", op.Table.Name, op.PrimaryKey.queryAsPrimaryKey())
 }
 
 func (op AddPrimaryKey) RollBack() string {
@@ -318,7 +318,7 @@ func (op AddIndex) String() string {
 	return fmt.Sprintf("ADD INDEX %s IN %s", op.Index.Name, op.Table.Name)
 }
 func (op AddIndex) Query() string {
-	return fmt.Sprintf("ALTER TABLE %s ADD %s", op.Table.Name, op.Index.definitionIndexString())
+	return fmt.Sprintf("ALTER TABLE %s ADD %s", op.Table.Name, op.Index.queryAsIndex())
 }
 func (op AddIndex) RollBack() string {
 	return NewDropIndex(op.Table, op.Index).Query()

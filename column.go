@@ -46,12 +46,12 @@ func (c Column) isUpdatedFrom(target Column) (bool, error) {
 	return !reflect.DeepEqual(c, target), nil
 }
 
-func (c *Column) read(s schema.Schema) error {
-	if hasNotColumn(s) {
+func (c *Column) read(schema schema.Schema) error {
+	if hasNotColumn(schema) {
 		return nil
 	}
 
-	b, err := json.Marshal(s.Extras["column"])
+	b, err := json.Marshal(schema.Extras["column"])
 	if err != nil {
 		return errors.Wrap(err, "convert to json")
 	}
@@ -62,7 +62,7 @@ func (c *Column) read(s schema.Schema) error {
 	return nil
 }
 
-func (c Column) definitionString() string {
+func (c Column) query() string {
 	s := []string{c.Name, c.Type}
 	if c.AutoIncrement {
 		s = append(s, "AUTO_INCREMENT")

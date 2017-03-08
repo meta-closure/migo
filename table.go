@@ -1,6 +1,8 @@
 package migo
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 
 	schema "github.com/lestrrat/go-jsschema"
@@ -13,7 +15,6 @@ type Table struct {
 	Index      Keys    `json:"index"`
 	Column     Columns `json:"column"`
 }
-
 
 type Tables []Table
 
@@ -33,7 +34,7 @@ func NewTable(id string) *Table {
 	return &Table{Id: id}
 }
 
-func (t Table) keys(i interface{}) ([]Key, error) {
+func (t Table) findKeys(i interface{}) ([]Key, error) {
 	m, ok := i.(map[string]interface{})
 	if !ok {
 		return nil, errors.New("fail to convert type to map[string]interface{}")
@@ -43,7 +44,7 @@ func (t Table) keys(i interface{}) ([]Key, error) {
 	for k, v := range m {
 		var err error
 		key := NewKey(k)
-		key.Target, err = keyList(t, v)
+		key.Target, err = targetList(t, v)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting key's target list")
 		}
@@ -54,18 +55,18 @@ func (t Table) keys(i interface{}) ([]Key, error) {
 	return keys, nil
 }
 
-func (t Table) selectPrimaryKey(m map[string]interface{}) ([]Key, error) {
+func (t Table) findPrimaryKey(m map[string]interface{}) ([]Key, error) {
 	if m["primary_key"] == nil {
 		return nil, nil
 	}
-	return t.keys(m["primary_key"])
+	return t.findKeys(m["primary_key"])
 }
 
-func (t Table) selectIndex(m map[string]interface{}) ([]Key, error) {
+func (t Table) findIndex(m map[string]interface{}) ([]Key, error) {
 	if m["index"] == nil {
 		return nil, nil
 	}
-	return t.keys(m["index"])
+	return t.findKeys(m["index"])
 }
 
 func (t *Table) read(schema *schema.Schema) error {
@@ -92,11 +93,11 @@ func (t *Table) read(schema *schema.Schema) error {
 	}
 
 	var err error
-	t.PrimaryKey, err = t.selectPrimaryKey(m)
+	t.PrimaryKey, err = t.findPrimaryKey(m)
 	if err != nil {
 		return errors.Wrap(err, "reading primary key")
 	}
-	t.Index, err = t.selectIndex(m)
+	t.Index, err = t.findIndex(m)
 	if err != nil {
 		return errors.Wrap(err, "setting index")
 	}
@@ -106,13 +107,13 @@ func (t *Table) read(schema *schema.Schema) error {
 func (t *Table) setName(i interface{}) error {
 	s, ok := i.(string)
 	if !ok {
-		return errors.New("given type is not string")
+		return fmt.Errorf("fail to convert string type from %s", i)
 	}
 	t.Name = s
 	return nil
 }
 
-func (t Table) selectIndexWithName(s string) (Key, error) {
+func (t Table) findIndexWithName(s string) (Key, error) {
 	for _, k := range t.Index {
 		if k.Name == s {
 			return k, nil
@@ -122,15 +123,15 @@ func (t Table) selectIndexWithName(s string) (Key, error) {
 }
 
 func (t Table) hasIndex(k Key) bool {
-	if _, err := t.selectIndexWithName(k.Name); err != nil {
+	if _, err := t.findIndexWithName(k.Name); err != nil {
 		return false
 	}
 	return true
 }
 
-func (t Table) selectPrimaryKeyWithName(s string) (Key, error) {
+func (t Table) findPrimaryKeyWithName(name string) (Key, error) {
 	for _, k := range t.PrimaryKey {
-		if k.Name == s {
+		if k.Name == name {
 			return k, nil
 		}
 	}
@@ -138,13 +139,13 @@ func (t Table) selectPrimaryKeyWithName(s string) (Key, error) {
 }
 
 func (t Table) hasPrimaryKey(k Key) bool {
-	if _, err := t.selectPrimaryKeyWithName(k.Name); err != nil {
+	if _, err := t.findPrimaryKeyWithName(k.Name); err != nil {
 		return false
 	}
 	return true
 }
 
-func (t Table) selectColumnWithID(id string) (Column, error) {
+func (t Table) findColumnWithID(id string) (Column, error) {
 	for _, c := range t.Column {
 		if c.Id == id {
 			return c, nil
@@ -154,7 +155,7 @@ func (t Table) selectColumnWithID(id string) (Column, error) {
 }
 
 func (t Table) hasColumn(c Column) bool {
-	if _, err := t.selectColumnWithID(c.Id); err != nil {
+	if _, err := t.findColumnWithID(c.Id); err != nil {
 		return false
 	}
 	return true
