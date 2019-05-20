@@ -1,4 +1,3 @@
-# Migration tool By JSON Schema
 
 ## Install
 
@@ -9,13 +8,13 @@ go get -u github.com/meta-closure/migo/cmd/migo
 ```
 
 ## Usage
-Read the (extended) JSON Schema file and migrate database.
+Easy to migrate.
 
 ```sh:
 migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e environment run
 ```
 
-With the Plan command you can see the plan what migo will do
+You can see the details of what migo does.
 
 ```sh;
 migo -y /path/to/schema.yml -s /path/to/internal.yml -d /path/to/dbconig.yml -e environment plan
@@ -45,14 +44,8 @@ master:
     dbname: db
 
 ```
-migo can read the setting from the specified environment, by default
-it will be "default" environment
-Make DSN(Data Source Name) from database setting to connect your database.
 
 ### Table Configuration Sample
-
-Primary Key and Index need to specify column key name.
-
 
 ```yaml:
 key:
@@ -91,17 +84,11 @@ migo support some flags.
 
 ## How to Setup to use migo
 
-migo have init command, it create initial state file and
-create database if not exist.
-
 ```sh:
 migo -d database.yml -e develop init
 ```
 
 ## Seeding
-
-migo have seed command, it enable you to insert initial record.
-for sample description.
 
 ```yaml:
 
@@ -118,11 +105,6 @@ bar:
     - hoge: hogehoge
 
 ```
-
-## Recovery
-
-If migo fails migration, such that type converting error or irregular operation,
-then migo attempt to recover before database states, execute reverse operation what migo done.
 
 ## Test
 
